@@ -1,7 +1,7 @@
 // app/programme/components/SubPartCard.tsx
 
 import { Lock, Check } from 'lucide-react';
-import { SubPart } from '@/lib/types/programme';
+import { SubPart } from '../../../lib/types/programme';
 
 interface SubPartCardProps {
   subPart: SubPart;

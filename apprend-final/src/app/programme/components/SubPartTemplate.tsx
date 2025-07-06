@@ -1,7 +1,7 @@
 'use client';
 import React, { useState } from 'react';
-import { SubPart } from '@/lib/types/programme';
-import { programmeSupabaseService } from '@/lib/programmeSupabaseService';
+import { SubPart } from '../../../lib/types/programme';
+import { programmeSupabaseService } from '../../../lib/programmeSupabaseService';
 
 interface SubPartTemplateProps {
   userId: string;

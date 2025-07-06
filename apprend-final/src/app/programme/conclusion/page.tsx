@@ -4,29 +4,33 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { programmeService } from '@/lib/programmeService';
-import { ProgrammeData } from '@/lib/types/programme';
+import { programmeSupabaseService } from '../../../lib/programmeSupabaseService';
+import { ProgrammeData, SubPart } from '../../../lib/types/programme';
 
 export default function ConclusionPage() {
   const router = useRouter();
   const [programmeData, setProgrammeData] = useState<ProgrammeData | null>(null);
 
   useEffect(() => {
-    const user = localStorage.getItem('user');
-    if (!user) {
-      router.push('/auth');
-      return;
-    }
+    const fetchData = async () => {
+      const user = localStorage.getItem('user');
+      if (!user) {
+        router.push('/auth');
+        return;
+      }
 
-    const userData = JSON.parse(user);
-    const programme = programmeService.getProgramme(userData.email);
-    
-    if (!programme || programme.overallProgress < 100) {
-      router.push('/programme');
-      return;
-    }
+      const userData = JSON.parse(user);
+      const programme = await programmeSupabaseService.getProgramme(userData.email);
+      
+      if (!programme || programme.overallProgress < 100) {
+        router.push('/programme');
+        return;
+      }
 
-    setProgrammeData(programme);
+      setProgrammeData(programme);
+    };
+
+    fetchData();
   }, [router]);
 
   if (!programmeData) {
@@ -73,7 +77,7 @@ export default function ConclusionPage() {
           <div className="grid grid-cols-2 gap-4 mb-8">
             <div className="bg-gray-100 rounded-xl p-4">
               <p className="text-3xl font-bold text-purple-600">
-                {programmeData.subParts.reduce((acc, part) => acc + part.fields.length, 0)}
+                {programmeData.subParts.reduce((acc: number, part: SubPart) => acc + part.fields.length, 0)}
               </p>
               <p className="text-sm text-gray-600">Entrées complétées</p>
             </div>

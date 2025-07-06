@@ -1,7 +1,7 @@
 'use client';
 import React, { useState } from 'react';
-import { ProgrammeData } from '@/lib/types/programme';
-import { programmeSupabaseService } from '@/lib/programmeSupabaseService';
+import { ProgrammeData } from '../../../lib/types/programme';
+import { programmeSupabaseService } from '../../../lib/programmeSupabaseService';
 
 interface SaveButtonProps {
   programme: ProgrammeData;
