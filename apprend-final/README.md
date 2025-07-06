@@ -39,6 +39,11 @@ src/
 
 ## Available Scripts
 
+
+### Supabase Schema
+The project expects two tables: `user_programmes` and `programme_entries`.
+Run the SQL in `supabase/schema.sql` on your Supabase instance to create them.
+
 - `npm run dev` – start the dev server with Turbopack
 - `npm run build` – create an optimized production build
 - `npm start` – run the built app
