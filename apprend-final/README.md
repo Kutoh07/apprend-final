@@ -1,36 +1,53 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Apprend+ Web Application
 
-## Getting Started
+Apprend+ is a self-development platform built with **Next.js** and **Supabase**. The app allows users to register, personalize their profile and follow a step-by-step programme designed to improve mental excellence.
 
-First, run the development server:
+## Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **User Authentication** powered by Supabase with Google, Apple and email/password providers.
+- **Personalisation Flow** to collect basic profile information (name, birth year, profession, etc.).
+- **Progressive Programme** composed of multiple parts (Ambitions, Caractère, Croyances, Émotions, Pensées, Travail, Environnement, Rétention) with local progress tracking.
+- **Dashboard** displaying current level and skill progression.
+- Built with **React 19**, **TypeScript**, **Tailwind CSS** and the latest **Next.js** app router.
+
+## Project Structure
+
+```
+src/
+  app/          Next.js routes and pages
+  components/   Shared UI components
+  hooks/        Custom React hooks (e.g. `useAuth`)
+  lib/          Supabase client and domain services
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Setup
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+2. Create a `.env.local` file at the project root and provide your Supabase credentials:
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=<your-supabase-url>
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
+   ```
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
+   The application will be available at [http://localhost:3000](http://localhost:3000).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Available Scripts
 
-## Learn More
+- `npm run dev` – start the dev server with Turbopack
+- `npm run build` – create an optimized production build
+- `npm start` – run the built app
+- `npm run lint` – run ESLint
 
-To learn more about Next.js, take a look at the following resources:
+## Deployment
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The app can be deployed to any platform that supports Node.js. When using **Vercel**, simply set the environment variables above in the project settings and push the repository.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Made with ❤️ for personal growth.
