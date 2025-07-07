@@ -4,7 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Lock, Check, RefreshCw } from 'lucide-react';
+import { Lock, Check, RefreshCw, Settings } from 'lucide-react';
 import { programmeSupabaseService } from '../../lib/programmeSupabaseService';
 import { ProgrammeData, SubPart } from '../../lib/types/programme';
 import { supabase } from '../../lib/supabase';
@@ -14,8 +14,94 @@ export default function ProgrammePage() {
   const [programmeData, setProgrammeData] = useState<ProgrammeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [fixing, setFixing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+
+  // Fonction pour corriger les progrès
+  const fixAllProgress = async () => {
+    if (!userId) return;
+    
+    setFixing(true);
+    try {
+      console.log('🔧 Correction des progrès pour tous les modules...');
+      
+      // Pour chaque sous-partie, recalculer le progrès
+      for (let subPartId = 1; subPartId <= 8; subPartId++) {
+        await forceUpdateSubpartProgress(userId, subPartId);
+      }
+      
+      // Recharger le programme
+      await loadProgramme();
+      
+      console.log('✅ Correction terminée');
+    } catch (error) {
+      console.error('💥 Erreur lors de la correction:', error);
+    } finally {
+      setFixing(false);
+    }
+  };
+
+  // Fonction pour forcer la mise à jour d'une sous-partie
+  const forceUpdateSubpartProgress = async (userId: string, subPartId: number) => {
+    try {
+      console.log(`🔧 Correction du progrès pour la sous-partie ${subPartId}`);
+      
+      // Compter les entrées
+      const { count, error: countError } = await supabase
+        .from('programme_entries')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('subpart_id', subPartId);
+
+      if (countError) {
+        console.error('❌ Erreur lors du comptage:', countError);
+        return;
+      }
+
+      const currentCount = count || 0;
+      // Récupérer la configuration
+      const configs = [
+        { id: 1, minFields: 1 }, // AMBITIONS
+        { id: 2, minFields: 1 }, // CARACTÈRE  
+        { id: 3, minFields: 1 }, // CROYANCES
+        { id: 4, minFields: 1 }, // ÉMOTIONS
+        { id: 5, minFields: 5 }, // PENSÉES
+        { id: 6, minFields: 1 }, // TRAVAIL
+        { id: 7, minFields: 1 }, // ENVIRONNEMENT
+        { id: 8, minFields: 1 }  // RÉTENTION
+      ];
+      
+      const config = configs.find(c => c.id === subPartId);
+      const minRequired = config?.minFields || 1;
+      
+      // Calculer le progrès
+      const progress = Math.min(100, Math.round((currentCount / minRequired) * 100));
+      const completed = progress >= 100;
+
+      console.log(`🔧 Sous-partie ${subPartId}: ${currentCount}/${minRequired} entrées = ${progress}% (complété: ${completed})`);
+
+      // Mettre à jour dans la base
+      const { error: updateError } = await supabase
+        .from('subpart_progress')
+        .update({
+          progress,
+          completed,
+          completed_at: completed ? new Date().toISOString() : null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId)
+        .eq('subpart_id', subPartId);
+
+      if (updateError) {
+        console.error('❌ Erreur lors de la mise à jour:', updateError);
+      } else {
+        console.log(`✅ Progrès corrigé: ${progress}%`);
+      }
+    } catch (error) {
+      console.error(`💥 Erreur lors de la correction de la sous-partie ${subPartId}:`, error);
+    }
+  };
 
   const loadProgramme = async () => {
     try {
@@ -43,7 +129,7 @@ export default function ProgrammePage() {
       console.log('📧 Email:', session.user.email);
 
       // Charger le programme avec l'UUID Supabase
-      console.log('📡 Chargement du programme depuis supabase...');
+      console.log('📡 Chargement du programme depuis Supabase...');
       let programme = await programmeSupabaseService.getProgramme(supabaseUserId);
       
       if (!programme) {
@@ -133,14 +219,6 @@ export default function ProgrammePage() {
               Retour
             </button>
           </div>
-          
-          {/* Informations de debug */}
-          <div className="mt-6 p-4 bg-gray-100 rounded-lg text-left text-xs">
-            <p><strong>Debug:</strong></p>
-            <p>User ID: {userId || 'Non défini'}</p>
-            <p>Erreur: {error || 'Programme non chargé'}</p>
-            <p>Timestamp: {new Date().toISOString()}</p>
-          </div>
         </div>
       </div>
     );
@@ -151,16 +229,28 @@ export default function ProgrammePage() {
       <div className="max-w-6xl mx-auto">
         {/* Indicateur de connexion Supabase */}
         <div className="bg-green-100 border border-green-300 rounded-lg p-4 mb-6">
-          <div className="flex items-center">
-            <span className="text-green-600 mr-2">✅</span>
-            <span className="text-green-800">Connecté à la base de données - Données synchronisées</span>
-            <button 
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="ml-auto text-green-600 hover:text-green-800 underline text-sm disabled:opacity-50"
-            >
-              {refreshing ? 'Actualisation...' : 'Actualiser'}
-            </button>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <span className="text-green-600 mr-2">✅</span>
+              <span className="text-green-800">Connecté à Supabase - Données synchronisées</span>
+            </div>
+            <div className="flex gap-2">
+              <button 
+                onClick={fixAllProgress}
+                disabled={fixing}
+                className="flex items-center gap-1 px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white rounded text-sm disabled:opacity-50"
+              >
+                <Settings size={14} />
+                {fixing ? 'Correction...' : 'Corriger progrès'}
+              </button>
+              <button 
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="text-green-600 hover:text-green-800 underline text-sm disabled:opacity-50"
+              >
+                {refreshing ? 'Actualisation...' : 'Actualiser'}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -288,6 +378,10 @@ export default function ProgrammePage() {
                 <span className="text-4xl mb-2 block">🌟</span>
                 <p className="text-lg text-gray-700">
                   Commence ton parcours en cliquant sur <strong>AMBITIONS</strong>
+                  <br />
+                  <span className="text-sm text-orange-600">
+                    💡 Si tu as déjà ajouté des entrées, clique sur "Corriger progrès" ci-dessus
+                  </span>
                 </p>
               </div>
             )}
@@ -361,7 +455,8 @@ export default function ProgrammePage() {
           <p><strong>Debug Supabase:</strong></p>
           <p>User ID (UUID): {userId}</p>
           <p>Dernière mise à jour: {programmeData.lastUpdated.toISOString()}</p>
-          <p>Tables utilisées: user_programmes, programme_entries, subpart_progress</p>
+          <p>Entrées totales: {programmeData.subParts.reduce((acc: number, sp: SubPart) => acc + sp.fields.length, 0)}</p>
+          <p>Progression calculée: {programmeData.subParts.map(sp => `${sp.name}: ${sp.progress}%`).join(', ')}</p>
         </div>
       </div>
     </div>

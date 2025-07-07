@@ -20,9 +20,99 @@ export default function SubPartTemplate({ subPartId }: SubPartTemplateProps) {
   const [newValue, setNewValue] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [navigating, setNavigating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+
+  // Fonction pour forcer la mise à jour d'une sous-partie
+  const forceUpdateSubpartProgress = async (userId: string, subPartId: number) => {
+    try {
+      console.log(`🔧 Correction du progrès pour la sous-partie ${subPartId}`);
+      
+      // Compter les entrées
+      const { count, error: countError } = await supabase
+        .from('programme_entries')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('subpart_id', subPartId);
+
+      if (countError) {
+        console.error('❌ Erreur lors du comptage:', countError);
+        return;
+      }
+
+      const currentCount = count || 0;
+      // Récupérer la configuration
+      const configs = [
+        { id: 1, minFields: 1 }, // AMBITIONS
+        { id: 2, minFields: 1 }, // CARACTÈRE  
+        { id: 3, minFields: 1 }, // CROYANCES
+        { id: 4, minFields: 1 }, // ÉMOTIONS
+        { id: 5, minFields: 5 }, // PENSÉES
+        { id: 6, minFields: 1 }, // TRAVAIL
+        { id: 7, minFields: 1 }, // ENVIRONNEMENT
+        { id: 8, minFields: 1 }  // RÉTENTION
+      ];
+      
+      const config = configs.find(c => c.id === subPartId);
+      const minRequired = config?.minFields || 1;
+      
+      // Calculer le progrès
+      const progress = Math.min(100, Math.round((currentCount / minRequired) * 100));
+      const completed = progress >= 100;
+
+      console.log(`🔧 Sous-partie ${subPartId}: ${currentCount}/${minRequired} entrées = ${progress}% (complété: ${completed})`);
+
+      // Vérifier si l'enregistrement existe
+      const { data: existingProgress } = await supabase
+        .from('subpart_progress')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('subpart_id', subPartId)
+        .single();
+
+      if (existingProgress) {
+        // Mettre à jour l'enregistrement existant
+        const { error: updateError } = await supabase
+          .from('subpart_progress')
+          .update({
+            progress,
+            completed,
+            completed_at: completed ? new Date().toISOString() : null,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', userId)
+          .eq('subpart_id', subPartId);
+
+        if (updateError) {
+          console.error('❌ Erreur lors de la mise à jour:', updateError);
+        } else {
+          console.log(`✅ Progrès mis à jour: ${progress}%`);
+        }
+      } else {
+        // Créer un nouvel enregistrement
+        const { error: insertError } = await supabase
+          .from('subpart_progress')
+          .insert({
+            user_id: userId,
+            subpart_id: subPartId,
+            progress,
+            completed,
+            completed_at: completed ? new Date().toISOString() : null,
+            updated_at: new Date().toISOString()
+          });
+
+        if (insertError) {
+          console.error('❌ Erreur lors de la création:', insertError);
+        } else {
+          console.log(`✅ Progrès créé: ${progress}%`);
+        }
+      }
+    } catch (error) {
+      console.error(`💥 Erreur lors de la correction de la sous-partie ${subPartId}:`, error);
+    }
+  };
 
   // Chargement initial
   useEffect(() => {
@@ -169,14 +259,55 @@ export default function SubPartTemplate({ subPartId }: SubPartTemplateProps) {
     router.push('/programme');
   };
 
-  const handleNext = () => {
-    if (programmeData && subPartId < programmeData.subParts.length) {
-      const nextSubPart = SUBPARTS_CONFIG.find(config => config.id === subPartId + 1);
-      if (nextSubPart) {
-        router.push(`/programme/${nextSubPart.slug}`);
+  // NOUVELLE FONCTION: Navigation avec correction automatique du progrès
+  const handleNext = async () => {
+    if (!userId) return;
+    
+    setNavigating(true);
+    try {
+      console.log('🔄 Préparation de la navigation vers le module suivant...');
+      
+      // 1. Corriger le progrès du module actuel
+      await forceUpdateSubpartProgress(userId, subPartId);
+      
+      // 2. Mettre à jour le progrès global
+      const { data: allProgress } = await supabase
+        .from('subpart_progress')
+        .select('progress')
+        .eq('user_id', userId);
+
+      if (allProgress && allProgress.length > 0) {
+        const totalProgress = allProgress.reduce((sum, p) => sum + p.progress, 0);
+        const overallProgress = Math.round(totalProgress / allProgress.length);
+        
+        await supabase
+          .from('user_programmes')
+          .update({
+            overall_progress: overallProgress,
+            last_updated: new Date().toISOString()
+          })
+          .eq('user_id', userId);
+
+        console.log('✅ Progrès global mis à jour:', overallProgress + '%');
       }
-    } else {
-      router.push('/programme/conclusion');
+      
+      // 3. Naviguer vers le module suivant
+      if (programmeData && subPartId < programmeData.subParts.length) {
+        const nextSubPart = SUBPARTS_CONFIG.find(config => config.id === subPartId + 1);
+        if (nextSubPart) {
+          console.log(`🚀 Navigation vers ${nextSubPart.name}`);
+          router.push(`/programme/${nextSubPart.slug}`);
+        }
+      } else {
+        console.log('🎉 Navigation vers la conclusion');
+        router.push('/programme/conclusion');
+      }
+      
+    } catch (error) {
+      console.error('💥 Erreur lors de la navigation:', error);
+      setError('Erreur lors de la navigation');
+    } finally {
+      setNavigating(false);
     }
   };
 
@@ -218,14 +349,6 @@ export default function SubPartTemplate({ subPartId }: SubPartTemplateProps) {
               Retour au programme
             </button>
           </div>
-          
-          {/* Debug info */}
-          <div className="mt-6 p-4 bg-gray-100 rounded-lg text-left text-xs">
-            <p><strong>Debug:</strong></p>
-            <p>SubPart ID: {subPartId}</p>
-            <p>User ID: {userId || 'Non défini'}</p>
-            <p>Erreur: {error || 'Sous-partie non trouvée'}</p>
-          </div>
         </div>
       </div>
     );
@@ -241,7 +364,7 @@ export default function SubPartTemplate({ subPartId }: SubPartTemplateProps) {
         <div className="bg-green-100 border border-green-300 rounded-lg p-3 mb-6">
           <div className="flex items-center text-sm">
             <span className="text-green-600 mr-2">✅</span>
-            <span className="text-green-800">Connecté à Supabase - User ID: {userId?.substring(0, 8)}...</span>
+            <span className="text-green-800">Connecté à Supabase - Correction automatique du progrès activée</span>
           </div>
         </div>
 
@@ -376,10 +499,24 @@ export default function SubPartTemplate({ subPartId }: SubPartTemplateProps) {
           {meetsMinimum && (
             <button
               onClick={handleNext}
-              className="flex items-center gap-2 px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-full transition-all transform hover:scale-105"
+              disabled={navigating}
+              className={`flex items-center gap-2 px-6 py-3 rounded-full transition-all transform hover:scale-105 ${
+                navigating
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-purple-500 hover:bg-purple-600 text-white'
+              }`}
             >
-              {subPartId < 8 ? 'Suivant' : 'Terminer'}
-              <Save size={20} />
+              {navigating ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  <span>Finalisation...</span>
+                </>
+              ) : (
+                <>
+                  <span>{subPartId < 8 ? 'Suivant' : 'Terminer'}</span>
+                  <Save size={20} />
+                </>
+              )}
             </button>
           )}
         </div>
@@ -392,14 +529,12 @@ export default function SubPartTemplate({ subPartId }: SubPartTemplateProps) {
           </div>
         )}
 
-        {/* Debug info */}
-        <div className="mt-6 bg-gray-100 rounded-lg p-4 text-xs">
-          <p><strong>Debug:</strong></p>
-          <p>SubPart ID: {subPartId}</p>
-          <p>Champs actuels: {currentSubPart.fields.length}</p>
-          <p>Minimum requis: {currentSubPart.minFields || 1}</p>
-          <p>Peut ajouter: {canAddMore ? 'Oui' : 'Non'}</p>
-          <p>Minimum atteint: {meetsMinimum ? 'Oui' : 'Non'}</p>
+        {/* Info sur la correction automatique */}
+        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm">
+          <p className="text-blue-800">
+            💡 <strong>Correction automatique :</strong> En cliquant sur "Suivant", 
+            le progrès sera automatiquement recalculé et mis à jour pour débloquer le module suivant.
+          </p>
         </div>
       </div>
     </div>
