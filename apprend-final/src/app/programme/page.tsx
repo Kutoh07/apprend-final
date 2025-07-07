@@ -518,11 +518,11 @@ export default function ProgrammePage() {
 
         {/* Informations de développement (à supprimer en production) */}
         {process.env.NODE_ENV === 'development' && (
-          <div className="bg-gray-100 rounded-lg p-4 text-xs">
-            <h4 className="font-bold text-gray-700 mb-2">🔧 Informations de développement</h4>
-            <div className="grid grid-cols-2 gap-4 text-gray-600">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <h4 className="font-bold text-blue-700 mb-2">🔧 Informations de développement</h4>
+            <div className="grid grid-cols-2 gap-4 text-blue-600 text-sm">
               <div>
-                <p><strong>User ID:</strong> {state.userId}</p>
+                <p><strong>User ID (UUID):</strong> {state.userId}</p>
                 <p><strong>Email:</strong> {state.userEmail}</p>
                 <p><strong>Progression:</strong> {state.programmeData.overallProgress}%</p>
               </div>
