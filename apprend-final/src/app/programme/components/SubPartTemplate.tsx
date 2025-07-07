@@ -1,3 +1,5 @@
+// app/programme/components/SubPartTemplate.tsx
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -5,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Plus, Trash2, Save, AlertCircle, CheckCircle } from 'lucide-react';
 import { programmeSupabaseService } from '../../../lib/programmeSupabaseService';
 import { ProgrammeData, SubPart, SUBPARTS_CONFIG } from '../../../lib/types/programme';
+import { supabase } from '../../../lib/supabase';
 
 interface SubPartTemplateProps {
   subPartId: number;
@@ -25,34 +28,64 @@ export default function SubPartTemplate({ subPartId }: SubPartTemplateProps) {
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Récupérer l'utilisateur
-        const user = localStorage.getItem('user');
-        if (!user) {
+        console.log(`🔄 Chargement de la sous-partie ${subPartId}`);
+        
+        // Vérification de l'authentification Supabase
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('❌ Erreur de session:', sessionError);
           router.push('/auth');
           return;
         }
 
-        const userData = JSON.parse(user);
-        const userEmail = userData.email || userData.id;
-        setUserId(userEmail);
-
-        // Vérifier l'accès à cette sous-partie
-        const canAccess = await programmeSupabaseService.canAccessSubPart(userEmail, subPartId);
-        if (!canAccess) {
-          router.push('/programme');
+        if (!session?.user) {
+          console.log('❌ Pas de session, redirection vers auth');
+          router.push('/auth');
           return;
         }
 
+        const supabaseUserId = session.user.id;
+        setUserId(supabaseUserId);
+        
+        console.log('👤 Utilisateur Supabase:', supabaseUserId);
+
+        // Vérifier l'accès à cette sous-partie
+        try {
+          const canAccess = await programmeSupabaseService.canAccessSubPart(supabaseUserId, subPartId);
+          console.log(`🔐 Accès à la sous-partie ${subPartId}:`, canAccess);
+          
+          if (!canAccess) {
+            console.log('❌ Accès refusé, retour au programme');
+            router.push('/programme');
+            return;
+          }
+        } catch (accessError) {
+          console.warn('⚠️ Erreur de vérification d\'accès:', accessError);
+          // Si erreur de vérification, autoriser la première sous-partie
+          if (subPartId !== 1) {
+            router.push('/programme');
+            return;
+          }
+        }
+
         // Charger le programme
-        const programme = await programmeSupabaseService.getProgramme(userEmail);
+        console.log('📡 Chargement du programme...');
+        const programme = await programmeSupabaseService.getProgramme(supabaseUserId);
+        
         if (programme) {
+          console.log('✅ Programme chargé:', programme);
           setProgrammeData(programme);
           const subPart = programme.subParts.find(sp => sp.id === subPartId);
+          console.log('📋 Sous-partie trouvée:', subPart);
           setCurrentSubPart(subPart || null);
+        } else {
+          throw new Error('Programme non trouvé');
         }
+        
       } catch (err) {
-        console.error('Erreur lors du chargement:', err);
-        setError('Erreur lors du chargement des données');
+        console.error('💥 Erreur lors du chargement:', err);
+        setError(`Erreur lors du chargement: ${err instanceof Error ? err.message : 'Erreur inconnue'}`);
       } finally {
         setLoading(false);
       }
@@ -63,29 +96,40 @@ export default function SubPartTemplate({ subPartId }: SubPartTemplateProps) {
 
   // Ajouter une nouvelle entrée
   const handleAddField = async () => {
-    if (!newValue.trim() || !userId || !currentSubPart) return;
+    if (!newValue.trim() || !userId || !currentSubPart) {
+      console.warn('⚠️ Conditions non remplies pour ajouter une entrée');
+      return;
+    }
 
     setSaving(true);
     setError(null);
     setSuccess(null);
 
     try {
+      console.log(`📝 Ajout d'une entrée pour la sous-partie ${subPartId}:`, newValue.trim());
+      
       const newField = await programmeSupabaseService.addField(userId, subPartId, newValue);
       
       if (newField) {
+        console.log('✅ Entrée ajoutée avec succès:', newField);
+        
         // Recharger les données
         const updatedProgramme = await programmeSupabaseService.getProgramme(userId);
         if (updatedProgramme) {
           setProgrammeData(updatedProgramme);
           const updatedSubPart = updatedProgramme.subParts.find(sp => sp.id === subPartId);
           setCurrentSubPart(updatedSubPart || null);
+          console.log('🔄 Données mises à jour');
         }
         
         setNewValue('');
         setSuccess('Entrée ajoutée avec succès !');
         setTimeout(() => setSuccess(null), 3000);
+      } else {
+        throw new Error('Échec de l\'ajout de l\'entrée');
       }
     } catch (err: any) {
+      console.error('💥 Erreur lors de l\'ajout:', err);
       setError(err.message || 'Erreur lors de l\'ajout');
     } finally {
       setSaving(false);
@@ -98,6 +142,8 @@ export default function SubPartTemplate({ subPartId }: SubPartTemplateProps) {
     
     setSaving(true);
     try {
+      console.log(`🗑️ Suppression de l'entrée ${fieldId}`);
+      
       await programmeSupabaseService.removeField(userId, fieldId, subPartId);
       
       // Recharger les données
@@ -111,6 +157,7 @@ export default function SubPartTemplate({ subPartId }: SubPartTemplateProps) {
       setSuccess('Entrée supprimée');
       setTimeout(() => setSuccess(null), 2000);
     } catch (err: any) {
+      console.error('💥 Erreur lors de la suppression:', err);
       setError(err.message || 'Erreur lors de la suppression');
     } finally {
       setSaving(false);
@@ -137,22 +184,48 @@ export default function SubPartTemplate({ subPartId }: SubPartTemplateProps) {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center">
-        <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
+        <div className="bg-white rounded-2xl shadow-lg p-8 text-center max-w-md">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement...</p>
+          <p className="text-gray-600 mb-2">Chargement...</p>
+          <div className="text-xs text-gray-400">
+            Connexion à Supabase et vérification des accès...
+          </div>
         </div>
       </div>
     );
   }
 
-  if (!currentSubPart) {
+  if (error || !currentSubPart) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center">
-        <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
-          <p className="text-red-600">Sous-partie non trouvée</p>
-          <button onClick={handleBack} className="mt-4 text-purple-600 hover:underline">
-            Retour au programme
-          </button>
+      <div className="min-h-screen bg-gradient-to-br from-red-100 to-red-200 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-lg p-8 text-center max-w-md">
+          <div className="text-6xl mb-4">⚠️</div>
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Erreur</h1>
+          <p className="text-gray-700 mb-6">
+            {error || 'Sous-partie non trouvée'}
+          </p>
+          <div className="flex gap-3 justify-center">
+            <button 
+              onClick={() => window.location.reload()}
+              className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg"
+            >
+              Réessayer
+            </button>
+            <button 
+              onClick={handleBack}
+              className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg"
+            >
+              Retour au programme
+            </button>
+          </div>
+          
+          {/* Debug info */}
+          <div className="mt-6 p-4 bg-gray-100 rounded-lg text-left text-xs">
+            <p><strong>Debug:</strong></p>
+            <p>SubPart ID: {subPartId}</p>
+            <p>User ID: {userId || 'Non défini'}</p>
+            <p>Erreur: {error || 'Sous-partie non trouvée'}</p>
+          </div>
         </div>
       </div>
     );
@@ -164,6 +237,14 @@ export default function SubPartTemplate({ subPartId }: SubPartTemplateProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-100 to-pink-100 p-4">
       <div className="max-w-4xl mx-auto">
+        {/* Indicateur de connexion */}
+        <div className="bg-green-100 border border-green-300 rounded-lg p-3 mb-6">
+          <div className="flex items-center text-sm">
+            <span className="text-green-600 mr-2">✅</span>
+            <span className="text-green-800">Connecté à Supabase - User ID: {userId?.substring(0, 8)}...</span>
+          </div>
+        </div>
+
         {/* Header */}
         <div className="bg-white rounded-3xl shadow-lg p-8 mb-8">
           <div className="flex items-center justify-between mb-6">
@@ -310,6 +391,16 @@ export default function SubPartTemplate({ subPartId }: SubPartTemplateProps) {
             </p>
           </div>
         )}
+
+        {/* Debug info */}
+        <div className="mt-6 bg-gray-100 rounded-lg p-4 text-xs">
+          <p><strong>Debug:</strong></p>
+          <p>SubPart ID: {subPartId}</p>
+          <p>Champs actuels: {currentSubPart.fields.length}</p>
+          <p>Minimum requis: {currentSubPart.minFields || 1}</p>
+          <p>Peut ajouter: {canAddMore ? 'Oui' : 'Non'}</p>
+          <p>Minimum atteint: {meetsMinimum ? 'Oui' : 'Non'}</p>
+        </div>
       </div>
     </div>
   );

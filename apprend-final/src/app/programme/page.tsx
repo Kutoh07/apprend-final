@@ -7,33 +7,57 @@ import { useRouter } from 'next/navigation';
 import { Lock, Check, RefreshCw } from 'lucide-react';
 import { programmeSupabaseService } from '../../lib/programmeSupabaseService';
 import { ProgrammeData, SubPart } from '../../lib/types/programme';
+import { supabase } from '../../lib/supabase';
 
 export default function ProgrammePage() {
   const router = useRouter();
   const [programmeData, setProgrammeData] = useState<ProgrammeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   const loadProgramme = async () => {
     try {
-      const user = localStorage.getItem('user');
-      if (!user) {
+      console.log('🔄 Début du chargement du programme avec Supabase');
+      
+      // Vérification de l'authentification Supabase
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('❌ Erreur de session Supabase:', sessionError);
         router.push('/auth');
         return;
       }
 
-      const userData = JSON.parse(user);
-      const userEmail = userData.email || userData.id;
+      if (!session?.user) {
+        console.log('❌ Pas de session Supabase, redirection vers auth');
+        router.push('/auth');
+        return;
+      }
+
+      const supabaseUserId = session.user.id; // UUID Supabase
+      setUserId(supabaseUserId);
       
-      let programme = await programmeSupabaseService.getProgramme(userEmail);
+      console.log('👤 Utilisateur Supabase trouvé:', supabaseUserId);
+      console.log('📧 Email:', session.user.email);
+
+      // Charger le programme avec l'UUID Supabase
+      console.log('📡 Chargement du programme depuis supabase...');
+      let programme = await programmeSupabaseService.getProgramme(supabaseUserId);
       
       if (!programme) {
-        programme = await programmeSupabaseService.initializeProgramme(userEmail);
+        console.log('🏗️ Programme non trouvé, initialisation...');
+        programme = await programmeSupabaseService.initializeProgramme(supabaseUserId);
       }
       
+      console.log('✅ Programme chargé avec succès:', programme);
       setProgrammeData(programme);
+      setError(null);
+
     } catch (error) {
-      console.error('Erreur lors du chargement du programme:', error);
+      console.error('💥 Erreur lors du chargement du programme:', error);
+      setError(`Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -46,24 +70,77 @@ export default function ProgrammePage() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
+    setError(null);
     await loadProgramme();
   };
 
   const handleSubPartClick = async (subPartId: number, slug: string) => {
-    if (!programmeData) return;
+    if (!programmeData || !userId) return;
     
-    const canAccess = await programmeSupabaseService.canAccessSubPart(programmeData.userId, subPartId);
-    if (canAccess) {
-      router.push(`/programme/${slug}`);
+    try {
+      const canAccess = await programmeSupabaseService.canAccessSubPart(userId, subPartId);
+      if (canAccess) {
+        router.push(`/programme/${slug}`);
+      } else {
+        alert('Cette section n\'est pas encore accessible. Complétez d\'abord la section précédente.');
+      }
+    } catch (error) {
+      console.error('Erreur lors de la vérification d\'accès:', error);
+      // En cas d'erreur, permettre l'accès à la première section
+      if (subPartId === 1) {
+        router.push(`/programme/${slug}`);
+      }
     }
   };
 
-  if (loading || !programmeData) {
+  // État de chargement
+  if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center">
-        <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
+        <div className="bg-white rounded-2xl shadow-lg p-8 text-center max-w-md">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement du programme...</p>
+          <p className="text-gray-600 mb-2">Chargement du programme...</p>
+          <div className="text-xs text-gray-400">
+            Connexion à Supabase...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // État d'erreur critique
+  if (error || !programmeData) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-red-100 to-red-200 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-lg p-8 text-center max-w-md">
+          <div className="text-6xl mb-4">⚠️</div>
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Erreur de chargement</h1>
+          <p className="text-gray-700 mb-6">
+            {error || 'Impossible de charger le programme.'}
+          </p>
+          <div className="flex gap-3 justify-center">
+            <button 
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg disabled:opacity-50"
+            >
+              {refreshing ? 'Rechargement...' : 'Réessayer'}
+            </button>
+            <button 
+              onClick={() => router.push('/dashboard')}
+              className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg"
+            >
+              Retour
+            </button>
+          </div>
+          
+          {/* Informations de debug */}
+          <div className="mt-6 p-4 bg-gray-100 rounded-lg text-left text-xs">
+            <p><strong>Debug:</strong></p>
+            <p>User ID: {userId || 'Non défini'}</p>
+            <p>Erreur: {error || 'Programme non chargé'}</p>
+            <p>Timestamp: {new Date().toISOString()}</p>
+          </div>
         </div>
       </div>
     );
@@ -72,6 +149,21 @@ export default function ProgrammePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-100 to-purple-100 p-4">
       <div className="max-w-6xl mx-auto">
+        {/* Indicateur de connexion Supabase */}
+        <div className="bg-green-100 border border-green-300 rounded-lg p-4 mb-6">
+          <div className="flex items-center">
+            <span className="text-green-600 mr-2">✅</span>
+            <span className="text-green-800">Connecté à la base de données - Données synchronisées</span>
+            <button 
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="ml-auto text-green-600 hover:text-green-800 underline text-sm disabled:opacity-50"
+            >
+              {refreshing ? 'Actualisation...' : 'Actualiser'}
+            </button>
+          </div>
+        </div>
+
         {/* Header */}
         <div className="bg-white rounded-3xl shadow-lg p-8 mb-8">
           <div className="flex justify-between items-start mb-4">
@@ -254,7 +346,6 @@ export default function ProgrammePage() {
             <button
               onClick={() => {
                 if (confirm('Êtes-vous sûr de vouloir recommencer le programme ? Toutes vos données seront supprimées.')) {
-                  // Logique de réinitialisation ici
                   handleRefresh();
                 }
               }}
@@ -263,6 +354,14 @@ export default function ProgrammePage() {
               Recommencer
             </button>
           )}
+        </div>
+
+        {/* Informations de debug */}
+        <div className="mt-6 bg-gray-100 rounded-lg p-4 text-xs">
+          <p><strong>Debug Supabase:</strong></p>
+          <p>User ID (UUID): {userId}</p>
+          <p>Dernière mise à jour: {programmeData.lastUpdated.toISOString()}</p>
+          <p>Tables utilisées: user_programmes, programme_entries, subpart_progress</p>
         </div>
       </div>
     </div>
