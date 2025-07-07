@@ -4,7 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Lock, Check, RefreshCw, Play, Users, BookOpen, TrendingUp } from 'lucide-react';
+import { Lock, Check, RefreshCw, Play, Users, BookOpen, TrendingUp, Home } from 'lucide-react';
 import { programmeSupabaseService } from '../../lib/programmeSupabaseService';
 import { ProgrammeData, SubPart } from '../../lib/types/programme';
 import { supabase } from '../../lib/supabase';
@@ -282,6 +282,31 @@ export default function ProgrammePage() {
 
         {/* Header principal */}
         <div className="bg-white rounded-3xl shadow-xl p-8 mb-8">
+          {/* Bouton retour dashboard - À ajouter au début */}
+          {/* Navigation améliorée en haut */}
+          <div className="bg-white rounded-2xl shadow-lg p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <button
+                  onClick={() => router.push('/dashboard')}
+                  className="hover:text-purple-600 transition-colors"
+                >
+                  Dashboard
+                </button>
+                <span>→</span>
+                <span className="text-purple-600 font-medium">Programme</span>
+              </div>
+              
+              <button
+                onClick={() => router.push('/dashboard')}
+                className="flex items-center gap-2 px-4 py-2 bg-teal-100 hover:bg-teal-200 text-teal-700 rounded-lg transition-colors"
+              >
+                <Home size={16} />
+                <span>Retour Dashboard</span>
+              </button>
+            </div>
+          </div>
+
           <div className="text-center mb-8">
             <h1 className="text-5xl font-bold mb-4">
               <span className="bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">

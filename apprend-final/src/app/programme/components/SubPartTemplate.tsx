@@ -4,7 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, AlertCircle, CheckCircle, Save } from 'lucide-react';
+import { Plus, AlertCircle, CheckCircle, Save, Home } from 'lucide-react';
 import { programmeSupabaseService } from '../../../lib/programmeSupabaseService';
 import { ModuleService } from '../../../lib/moduleService';
 import { ProgrammeData, SubPart, SUBPARTS_CONFIG } from '../../../lib/types/programme';
@@ -227,6 +227,37 @@ export default function SubPartTemplate({ subPartId }: SubPartTemplateProps) {
             </p>
           </div>
         )}
+
+        {/* Navigation améliorée avec breadcrumbs */}
+        <div className="bg-white rounded-2xl shadow-lg p-4 mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <button
+                onClick={() => router.push('/dashboard')}
+                className="hover:text-purple-600 transition-colors"
+              >
+                Dashboard
+              </button>
+              <span>→</span>
+              <button
+                onClick={() => router.push('/programme')}
+                className="hover:text-purple-600 transition-colors"
+              >
+                Programme
+              </button>
+              <span>→</span>
+              <span className="text-purple-600 font-medium">{currentSubPart.name}</span>
+            </div>
+            
+            <button
+              onClick={() => router.push('/programme')}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg transition-colors"
+            >
+              <Home size={16} />
+              <span>Retour Programme</span>
+            </button>
+          </div>
+        </div>
 
         {/* Navigation entre modules */}
         <ModuleNavigation
