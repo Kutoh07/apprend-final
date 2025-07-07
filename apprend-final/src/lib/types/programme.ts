@@ -4,6 +4,7 @@ export interface SubPartField {
   id: string;
   value: string;
   createdAt: Date;
+  updatedAt?: Date;
 }
 
 export interface SubPart {
