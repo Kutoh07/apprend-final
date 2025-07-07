@@ -20,3 +20,28 @@ body {
   font-family: Roboto, Helvetica, "Segoe UI", sans-serif, "Helvetica Neue", Arial,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
 }
+
+/* Animations personnalisées */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+}
+
+/* Transition fluide pour les barres de progression */
+.progress-bar {
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Effet de flou pour les boutons désactivés */
+.blur-disabled {
+  filter: blur(1px);
+  transition: filter 0.3s ease;
+}
+
+.blur-disabled:hover {
+  filter: blur(0px);
+}
