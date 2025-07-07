@@ -3,6 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Target, TrendingUp, Award, Smile, Home, LogOut, User, Calendar, BookOpen, BarChart3, Settings } from 'lucide-react';
 import { UserProfileService } from '../../lib/userProfileService';
+import { programmeSupabaseService } from '../../lib/programmeSupabaseService';
+import { ProgrammeData } from '../../lib/types/programme';
+import { supabase } from '../../lib/supabase';
 
 interface UserProgress {
   level: number;
@@ -40,31 +43,56 @@ interface Skill {
 export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
+  const [programmeData, setProgrammeData] = useState<ProgrammeData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Vérification de l'authentification
+  // Vérification de l'authentification et chargement des données
   useEffect(() => {
     const checkAuth = async () => {
-      if (typeof window !== 'undefined') {
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-          const userData: User = JSON.parse(storedUser);
-          
-          // Récupérer le profil depuis Supabase
-          const { data: profile } = await UserProfileService.getUserProfile();
-          if (profile) {
-            // Fusionner les données
-            userData.name = profile.name;
-            // Autres données...
-          }
-          
-          setUser(userData);
-        } else {
+      try {
+        // Vérifier l'authentification Supabase
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session?.user) {
           router.push('/auth');
           return;
         }
+
+        // Récupérer le profil utilisateur
+        const { data: profile } = await UserProfileService.getUserProfile();
+        
+        // Récupérer les données du programme
+        const programme = await programmeSupabaseService.getProgramme(session.user.id);
+        
+        // Construire l'objet utilisateur
+        const userData: User = {
+          email: session.user.email || '',
+          name: profile?.name || session.user.email?.split('@')[0] || 'Utilisateur',
+          progress: {
+            level: programme?.overallProgress || 0,
+            skills: {
+              confiance: 85,  // Valeurs par défaut
+              discipline: 70,
+              action: 95
+            }
+          },
+          createdAt: session.user.created_at
+        };
+
+        setUser(userData);
+        setProgrammeData(programme);
+        
+        // Sauvegarder aussi localement pour compatibilité
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('user', JSON.stringify(userData));
+        }
+        
+      } catch (error) {
+        console.error('Erreur lors du chargement:', error);
+        router.push('/auth');
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     checkAuth();
@@ -73,12 +101,12 @@ export default function DashboardPage() {
   // Fonction pour gérer les clics sur les niveaux
   const handleLevelClick = (level: Level) => {
     if (level.name === "PERSONNALISÉ" || level.name === "PERSONALISE") {
-   router.push('/personalisation');
-  } else if (level.name === "PROGRAMME") {
-    router.push('/programme');
-  } else {
-    alert(`${level.name} : Cette fonctionnalité sera bientôt disponible !`);
-  }
+      router.push('/personalisation');
+    } else if (level.name === "PROGRAMME") {
+      router.push('/programme');
+    } else {
+      alert(`${level.name} : Cette fonctionnalité sera bientôt disponible !`);
+    }
   };
 
   const skills: Skill[] = user?.progress?.skills ? [
@@ -109,8 +137,8 @@ export default function DashboardPage() {
     { name: "ACTION", value: 95, color: "bg-purple-400", description: "Passage à l'acte", icon: "🚀" }
   ];
 
-  // Calculer la moyenne des 3 axes (CECI SERA MAINTENANT LA PROGRESSION PRINCIPALE)
-  const averageProgress = Math.round((skills[0].value + skills[1].value + skills[2].value) / 3);
+  // Utiliser la progression du programme réel si disponible, sinon la moyenne des compétences
+  const averageProgress = programmeData?.overallProgress || Math.round((skills[0].value + skills[1].value + skills[2].value) / 3);
 
   const levels: Level[] = [
     {
@@ -125,9 +153,9 @@ export default function DashboardPage() {
       name: "PROGRAMME", 
       color: "from-purple-400 to-purple-600",
       icon: TrendingUp,
-      progress: averageProgress >= 60 ? 100 : Math.max(0, (averageProgress - 20) / 40) * 100,
+      progress: programmeData ? programmeData.overallProgress : Math.max(0, (averageProgress - 20) / 40) * 100,
       description: "Structuration de ton parcours",
-      isClickable: false
+      isClickable: true
     },
     {
       name: "RENAISSANCE",
@@ -147,7 +175,7 @@ export default function DashboardPage() {
     }
   ];
 
-  // Fonction avec 4 niveaux basée sur la MOYENNE des compétences
+  // Fonction avec 4 niveaux basée sur la progression réelle du programme
   const getProgressMessage = () => {
     if (averageProgress < 20) {
       return {
@@ -184,7 +212,8 @@ export default function DashboardPage() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     if (typeof window !== 'undefined') {
       localStorage.removeItem('user');
     }
@@ -220,11 +249,16 @@ export default function DashboardPage() {
                 APPREND<span className="text-xl">+</span>
               </h1>
               <p className="text-gray-600">
-                Bienvenue, <span className="font-semibold">{user.name || user.email}</span> !
+                Bienvenue, <span className="font-semibold">{user.name}</span> !
               </p>
               {user.createdAt && (
                 <p className="text-sm text-gray-500">
                   Membre depuis le {new Date(user.createdAt).toLocaleDateString('fr-FR')}
+                </p>
+              )}
+              {programmeData && (
+                <p className="text-sm text-teal-600 font-medium">
+                  Programme : {programmeData.subParts.filter(sp => sp.completed).length}/8 parties complétées
                 </p>
               )}
             </div>
@@ -254,7 +288,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Niveaux de progression avec navigation pour PERSONNALISÉ */}
+      {/* Niveaux de progression */}
       <div className="max-w-6xl mx-auto mb-8">
         <div className="bg-white rounded-2xl shadow-lg p-8">
           <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Ton Parcours</h2>
@@ -302,11 +336,11 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Section des compétences ET Message de progression sur la même ligne */}
+      {/* Section des compétences ET Message de progression */}
       <div className="max-w-6xl mx-auto mb-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           
-          {/* Section des compétences (gauche) - SANS la moyenne */}
+          {/* Section des compétences (gauche) */}
           <div className="bg-white rounded-2xl shadow-lg p-8">
             <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Tes Compétences</h2>
             
@@ -350,7 +384,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Message de progression (droite) - AVEC la moyenne calculée */}
+          {/* Message de progression (droite) */}
           <div className="flex items-center">
             <div className={`rounded-3xl shadow-lg p-8 text-center border-2 ${progressInfo.bgColor} w-full`}>
               <div className="mb-6">
@@ -359,13 +393,13 @@ export default function DashboardPage() {
               
               <div className="mb-6">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4">
-                  Évolution de <span className="underline">{user.name || 'Prénom Nom'}</span>
+                  Évolution de <span className="underline">{user.name}</span>
                 </h2>
                 
-                {/* Pourcentage imposant - MAINTENANT BASÉ SUR LA MOYENNE */}
+                {/* Pourcentage basé sur la progression réelle du programme */}
                 <div className={`text-8xl font-bold mb-4 ${
                   averageProgress >= 100 
-                    ? 'text-yellow-500' // Couleur gold pour 100%
+                    ? 'text-yellow-500' 
                     : 'text-gray-600'
                 }`}>
                   {averageProgress}%
@@ -383,6 +417,24 @@ export default function DashboardPage() {
               <p className={`${progressInfo.textColor} text-xl leading-relaxed font-medium`}>
                 {progressInfo.message}
               </p>
+              
+              {/* Statistiques du programme si disponible */}
+              {programmeData && (
+                <div className="mt-6 grid grid-cols-2 gap-4 text-sm">
+                  <div className="bg-white/50 rounded-lg p-3">
+                    <p className="font-bold text-gray-700">
+                      {programmeData.subParts.reduce((acc, sp) => acc + sp.fields.length, 0)}
+                    </p>
+                    <p className="text-gray-600">Entrées créées</p>
+                  </div>
+                  <div className="bg-white/50 rounded-lg p-3">
+                    <p className="font-bold text-gray-700">
+                      {programmeData.subParts.filter(sp => sp.completed).length}/8
+                    </p>
+                    <p className="text-gray-600">Parties complétées</p>
+                  </div>
+                </div>
+              )}
               
               {averageProgress >= 100 && (
                 <div className="mt-6 flex justify-center space-x-4">
@@ -402,10 +454,15 @@ export default function DashboardPage() {
           <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Actions du jour</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button className="bg-teal-500 hover:bg-teal-600 text-white p-6 rounded-xl transition-all duration-200 transform hover:scale-105 group">
+            <button 
+              onClick={() => router.push('/programme')}
+              className="bg-teal-500 hover:bg-teal-600 text-white p-6 rounded-xl transition-all duration-200 transform hover:scale-105 group"
+            >
               <BookOpen size={32} className="mx-auto mb-3 group-hover:scale-110 transition-transform" />
-              <div className="font-semibold text-lg">Nouvelle réflexion</div>
-              <div className="text-sm opacity-90 mt-1">Ajouter une entrée de journal</div>
+              <div className="font-semibold text-lg">Continuer le programme</div>
+              <div className="text-sm opacity-90 mt-1">
+                {programmeData ? `${programmeData.overallProgress}% complété` : 'Commencer le parcours'}
+              </div>
             </button>
             
             <button className="bg-purple-500 hover:bg-purple-600 text-white p-6 rounded-xl transition-all duration-200 transform hover:scale-105 group">
@@ -423,16 +480,17 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Simulateur de progression pour test - MAINTENANT BASÉ SUR LES COMPÉTENCES */}
-      <div className="max-w-6xl mx-auto">
-        <div className="bg-gray-100 rounded-2xl p-6 text-center">
-          <h3 className="text-lg font-bold text-gray-700 mb-4">🧪 Moyenne actuelle des compétences: {averageProgress}%</h3>
-          <p className="text-sm text-gray-600">
-            La progression afichée est calculée automatiquement à partir de la moyenne de tes 3 compétences: 
-            Confiance ({skills[0].value}%) + Discipline ({skills[1].value}%) + Action ({skills[2].value}%) = {averageProgress}%
-          </p>
+      {/* Informations de debug pour développement */}
+      {programmeData && (
+        <div className="max-w-6xl mx-auto">
+          <div className="bg-gray-100 rounded-2xl p-6 text-center">
+            <h3 className="text-lg font-bold text-gray-700 mb-4">📊 Données synchronisées avec Supabase</h3>
+            <p className="text-sm text-gray-600">
+              Programme chargé depuis la base de données • Dernière mise à jour : {programmeData.lastUpdated.toLocaleString('fr-FR')}
+            </p>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

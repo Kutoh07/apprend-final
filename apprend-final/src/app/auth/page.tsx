@@ -1,7 +1,7 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import { Mail, Smartphone } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '../../lib/supabase';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { User } from '@supabase/supabase-js'; // Import du type User
@@ -23,7 +23,7 @@ export default function AuthChoicePage() {
     checkUser();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      async (event: any, session: any) => {
         if (session?.user) {
           setUser(session.user);
           router.push('/dashboard');

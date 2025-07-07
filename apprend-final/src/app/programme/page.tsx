@@ -5,8 +5,8 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Lock, Check, RefreshCw } from 'lucide-react';
-import { programmeSupabaseService } from '@/lib/programmeSupabaseService';
-import { ProgrammeData } from '@/lib/types/programme';
+import { programmeSupabaseService } from '../../lib/programmeSupabaseService';
+import { ProgrammeData, SubPart } from '../../lib/types/programme';
 
 export default function ProgrammePage() {
   const router = useRouter();
@@ -111,13 +111,13 @@ export default function ProgrammePage() {
           <div className="grid grid-cols-3 gap-4 mt-6">
             <div className="text-center p-4 bg-gray-50 rounded-xl">
               <p className="text-2xl font-bold text-green-600">
-                {programmeData.subParts.filter(sp => sp.completed).length}
+                {programmeData.subParts.filter((sp: SubPart) => sp.completed).length}
               </p>
               <p className="text-sm text-gray-600">Parties complétées</p>
             </div>
             <div className="text-center p-4 bg-gray-50 rounded-xl">
               <p className="text-2xl font-bold text-blue-600">
-                {programmeData.subParts.reduce((acc, sp) => acc + sp.fields.length, 0)}
+                {programmeData.subParts.reduce((acc: number, sp: SubPart) => acc + sp.fields.length, 0)}
               </p>
               <p className="text-sm text-gray-600">Entrées totales</p>
             </div>

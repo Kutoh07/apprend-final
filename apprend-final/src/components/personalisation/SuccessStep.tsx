@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { UserData } from '../../app/personalisation/page';
 import { UserProfileService } from '../../lib/userProfileService';
+import { programmeSupabaseService } from '../../lib/programmeSupabaseService';
+import { supabase } from '../../lib/supabase';
 
 interface SuccessStepProps {
   userData: UserData;
@@ -20,16 +22,44 @@ export default function SuccessStep({ userData, onNext, onBack }: SuccessStepPro
     setError(null);
     
     try {
-      // Sauvegarder dans Supabase
-      console.log('Tentative de sauvegarde des données:', userData);
+      // Récupérer l'utilisateur connecté
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.user) {
+        throw new Error('Utilisateur non connecté');
+      }
+
+      // Sauvegarder le profil dans Supabase
+      console.log('Sauvegarde du profil utilisateur:', userData);
       
       const result = await UserProfileService.saveUserProfile(userData);
       
       if (result && !result.error) {
         console.log('Profil sauvegardé avec succès:', result);
+        
+        // Initialiser le programme pour cet utilisateur
+        console.log('Initialisation du programme...');
+        await programmeSupabaseService.initializeProgramme(session.user.id);
+        
         setSaved(true);
         
-        // Sauvegarder aussi en local comme backup
+        // Sauvegarder aussi en local pour compatibilité
+        const userInfo = {
+          id: session.user.id,
+          email: session.user.email,
+          name: userData.name,
+          created_at: session.user.created_at,
+          progress: {
+            level: 0, // Nouvel utilisateur
+            skills: {
+              confiance: 20,
+              discipline: 15,
+              action: 30
+            }
+          }
+        };
+        
+        localStorage.setItem('user', JSON.stringify(userInfo));
         localStorage.setItem('userPersonalisation', JSON.stringify(userData));
         
         // Attendre 1.5 secondes pour montrer le succès, puis rediriger
@@ -88,7 +118,7 @@ export default function SuccessStep({ userData, onNext, onBack }: SuccessStepPro
               <div className="mt-6 p-4 bg-blue-50 rounded-lg">
                 <div className="flex items-center space-x-2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                  <span className="text-blue-700">Sauvegarde en cours...</span>
+                  <span className="text-blue-700">Sauvegarde et initialisation du programme...</span>
                 </div>
               </div>
             )}
@@ -97,7 +127,7 @@ export default function SuccessStep({ userData, onNext, onBack }: SuccessStepPro
               <div className="mt-6 p-4 bg-green-50 rounded-lg">
                 <div className="flex items-center space-x-2">
                   <span className="text-green-600">✅</span>
-                  <span className="text-green-700">Profil sauvegardé avec succès ! Redirection en cours...</span>
+                  <span className="text-green-700">Profil sauvegardé et programme initialisé ! Redirection en cours...</span>
                 </div>
               </div>
             )}
