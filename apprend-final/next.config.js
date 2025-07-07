@@ -1,14 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    turbo: {
-      rules: {
-        '*.css': {
-          loaders: ['@tailwindcss/postcss'],
-        },
-      },
-    },
-  },
+  // Configuration simplifiée - plus besoin de configuration spéciale pour Turbopack
+  // Turbopack est maintenant stable et fonctionne par défaut avec --turbopack
 }
 
 module.exports = nextConfig
