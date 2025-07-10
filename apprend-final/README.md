@@ -36,18 +36,23 @@ src/
    npm run dev
    ```
    The application will be available at [http://localhost:3000](http://localhost:3000).
+4. (Optional) In another terminal run the Tailwind watcher:
+   ```bash
+   npm run build-css
+   ```
+   This compiles `src/app/globals.css` whenever your Tailwind classes change.
 
 ## Available Scripts
 
+- `npm run dev` – start the dev server with Turbopack
+- `npm run build-css` – watch and compile Tailwind styles
+- `npm run build` – create an optimized production build
+- `npm start` – run the built app
+- `npm run lint` – run ESLint
 
 ### Supabase Schema
 The project expects two tables: `user_programmes` and `programme_entries`.
 Run the SQL in `supabase/schema.sql` on your Supabase instance to create them.
-
-- `npm run dev` – start the dev server with Turbopack
-- `npm run build` – create an optimized production build
-- `npm start` – run the built app
-- `npm run lint` – run ESLint
 
 ## Deployment
 
