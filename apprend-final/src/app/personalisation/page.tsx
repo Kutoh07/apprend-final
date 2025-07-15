@@ -1,8 +1,13 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import WelcomeStep from '../../components/personalisation/WelcomeStep';
 import PersonalInfoStep from '../../components/personalisation/PersonalInfoStep';
 import SuccessStep from '../../components/personalisation/SuccessStep';
+import { UserProfileService } from '../../lib/userProfileService';
+import {
+  getProfessionValueFromLabel,
+  getCountryValueFromLabel,
+} from '../../lib/dataMappings';
 
 export interface UserData {
   name: string;
@@ -20,6 +25,24 @@ export default function PersonalisationPage() {
     birthYear: new Date().getFullYear(),
     profession: ''
   });
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const { data } = await UserProfileService.getUserProfile();
+      if (data) {
+        setUserData({
+          name: data.name || '',
+          birthYear: data.birth_year || new Date().getFullYear(),
+          profession: getProfessionValueFromLabel(data.profession || ''),
+          gender: data.gender || undefined,
+          phone: data.phone || undefined,
+          country: getCountryValueFromLabel(data.country || '') || undefined,
+        });
+      }
+    };
+
+    fetchProfile();
+  }, []);
 
   const handleNext = () => {
     setCurrentStep(prev => prev + 1);

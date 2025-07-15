@@ -1,5 +1,9 @@
 import { supabase } from './supabase';
 import { UserData } from '../app/personalisation/page';
+import {
+  getProfessionLabelFromValue,
+  getCountryLabelFromValue,
+} from './dataMappings';
 
 export interface UserProfile extends UserData {
   id?: string;
@@ -31,10 +35,10 @@ export class UserProfileService {
         user_id: user.id,
         name: userData.name,
         birth_year: userData.birthYear,
-        profession: userData.profession,
+        profession: getProfessionLabelFromValue(userData.profession),
         gender: userData.gender || null,
         phone: userData.phone || null,
-        country: userData.country || null,
+        country: userData.country ? getCountryLabelFromValue(userData.country) : null,
         updated_at: new Date().toISOString()
       };
 

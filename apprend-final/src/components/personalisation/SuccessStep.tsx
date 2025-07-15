@@ -4,6 +4,10 @@ import { UserData } from '../../app/personalisation/page';
 import { UserProfileService } from '../../lib/userProfileService';
 import { programmeSupabaseService } from '../../lib/programmeSupabaseService';
 import { supabase } from '../../lib/supabase';
+import {
+  getProfessionLabelFromValue,
+  getCountryLabelFromValue,
+} from '../../lib/dataMappings';
 
 interface SuccessStepProps {
   userData: UserData;
@@ -172,10 +176,12 @@ export default function SuccessStep({ userData, onNext, onBack }: SuccessStepPro
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
             <div><strong>Nom :</strong> {userData.name}</div>
             <div><strong>Année de naissance :</strong> {userData.birthYear}</div>
-            <div><strong>Profession :</strong> {userData.profession}</div>
+            <div><strong>Profession :</strong> {getProfessionLabelFromValue(userData.profession)}</div>
             {userData.gender && <div><strong>Genre :</strong> {userData.gender}</div>}
             {userData.phone && <div><strong>Téléphone :</strong> {userData.phone}</div>}
-            {userData.country && <div><strong>Pays :</strong> {userData.country}</div>}
+            {userData.country && (
+              <div><strong>Pays :</strong> {getCountryLabelFromValue(userData.country)}</div>
+            )}
           </div>
         </div>
 
