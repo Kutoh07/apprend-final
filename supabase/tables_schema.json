@@ -1,0 +1,147 @@
+[
+  {
+    "table_name": "programme_entries",
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "programme_entries",
+    "column_name": "user_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "programme_entries",
+    "column_name": "subpart_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "programme_entries",
+    "column_name": "value",
+    "data_type": "text"
+  },
+  {
+    "table_name": "programme_entries",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "programme_entries",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "subpart_progress",
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "subpart_progress",
+    "column_name": "user_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "subpart_progress",
+    "column_name": "subpart_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "subpart_progress",
+    "column_name": "progress",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "subpart_progress",
+    "column_name": "completed",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "subpart_progress",
+    "column_name": "completed_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "subpart_progress",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "user_profiles",
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "user_profiles",
+    "column_name": "user_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "user_profiles",
+    "column_name": "name",
+    "data_type": "text"
+  },
+  {
+    "table_name": "user_profiles",
+    "column_name": "birth_year",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "user_profiles",
+    "column_name": "profession",
+    "data_type": "text"
+  },
+  {
+    "table_name": "user_profiles",
+    "column_name": "gender",
+    "data_type": "text"
+  },
+  {
+    "table_name": "user_profiles",
+    "column_name": "phone",
+    "data_type": "text"
+  },
+  {
+    "table_name": "user_profiles",
+    "column_name": "country",
+    "data_type": "text"
+  },
+  {
+    "table_name": "user_profiles",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "user_profiles",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "user_programmes",
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "user_programmes",
+    "column_name": "user_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "user_programmes",
+    "column_name": "current_subpart",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "user_programmes",
+    "column_name": "overall_progress",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "user_programmes",
+    "column_name": "last_updated",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "user_programmes",
+    "column_name": "completed_at",
+    "data_type": "timestamp with time zone"
+  }
+]
