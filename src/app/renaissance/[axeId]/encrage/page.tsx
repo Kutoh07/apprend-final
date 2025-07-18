@@ -8,10 +8,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '../../../../lib/supabase';
 import { renaissanceService } from '../../../../lib/services/renaissanceService';
 import FlashPhraseGame from '../../components/FlashPhraseGame';
-import ResultDisplay from '../../components/ResultDisplay';
+import ResultDisplay, { GameResults } from '../../components/ResultDisplay';
 import { LevelNavigation, CurrentLevelDisplay } from '../../components/LevelIndicator';
-import type { 
-  GameResults, 
+import type {  
   PhraseAttempt, 
   RenaissancePhrase 
 } from '../../../../lib/services/renaissanceService';

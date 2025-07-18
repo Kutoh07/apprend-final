@@ -67,7 +67,8 @@ export default function DiscoveryPage({ params }: { params: { axeId: string } })
       setPhrases(phrasesData.map(p => ({
         id: p.id,
         content: p.content,
-        phraseNumber: p.phrase_number
+        phraseNumber: p.phrase_number,
+  axeId: params.axeId
       })));
 
       setLoading(false);
@@ -207,14 +208,16 @@ export default function DiscoveryPage({ params }: { params: { axeId: string } })
 
   return (
     <FlashPhraseGame
-      phrase={currentPhrase}
-      userInput={userInput}
-      onInputChange={setUserInput}
-      onSubmit={handlePhraseSubmit}
-      flashDuration={500}
-      showResult={showResult}
-      isShowingPhrase={isShowingPhrase}
-      result={lastResult ?? undefined}
-    />
+  phrase={currentPhrase}
+  userInput={userInput}
+  onInputChange={setUserInput}
+  onSubmit={handlePhraseSubmit}
+  flashDuration={500}
+  showResult={showResult}
+  isShowingPhrase={isShowingPhrase}
+  result={lastResult ?? undefined}
+  phraseNumber={currentPhraseIndex + 1}
+  totalPhrases={phrases.length}
+/>
   );
 }

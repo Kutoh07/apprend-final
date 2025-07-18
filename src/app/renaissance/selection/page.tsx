@@ -39,7 +39,12 @@ export default function AxeSelectionPage() {
 
       // Charger les axes disponibles via le service
       const axes = await renaissanceService.getAvailableAxes();
-      setAvailableAxes(axes);
+      // Normaliser pour garantir que phrases est toujours un tableau
+      const normalizedAxes = axes.map(a => ({
+        ...a,
+        phrases: a.phrases ?? [],
+      }));
+      setAvailableAxes(normalizedAxes);
 
       // Charger les sélections existantes
       const { data: selectionsData, error: selectionsError } = await supabase

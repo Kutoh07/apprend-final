@@ -112,14 +112,14 @@ const SubPartPage: React.FC<SubPartTemplateProps> = ({ subPartId }) => {
               >
                 Dashboard
               </button>
-              <span>→</span>
+              <span>➡️</span>
               <button
                 onClick={() => router.push('/programme')}
                 className="hover:text-purple-600 transition-colors"
               >
                 Programme
               </button>
-              <span>→</span>
+              <span>➡️</span>
               <span className="text-purple-600 font-medium">{currentSubPart.name}</span>
             </div>
             

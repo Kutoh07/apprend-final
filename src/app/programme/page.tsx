@@ -343,7 +343,7 @@ export default function ProgrammePage() {
                 >
                   Dashboard
                 </button>
-                <span>→</span>
+                <span>➡️</span>
                 <span className="text-purple-600 font-medium">Programme</span>
               </div>
               
