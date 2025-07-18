@@ -87,6 +87,8 @@ export interface RenaissanceStats {
   bestAccuracy: number;
   worstAccuracy: number;
   axesStats: AxeStats[];
+  masteryLevel: 'débutant' | 'intermédiaire' | 'avancé' | 'expert';
+  improvementTips: string[];
 }
 
 export interface AxeStats {

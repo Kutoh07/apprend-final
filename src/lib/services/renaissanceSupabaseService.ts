@@ -18,6 +18,34 @@ import { axeSupabaseService } from './axeSupabaseService';
  * Gère toutes les opérations de base de données pour le module Renaissance
  */
 export class RenaissanceSupabaseService {
+  /**
+   * Récupère tous les axes disponibles
+   */
+  async getAxes(): Promise<RenaissanceAxe[]> {
+    const { data, error } = await supabase
+      .from('renaissance_axes')
+      .select('*')
+      .order('sort_order');
+    if (error) throw error;
+    return data || [];
+  }
+
+  /**
+   * Récupère un axe avec ses phrases
+   */
+  async getAxeWithPhrases(axeId: string): Promise<RenaissanceAxe | null> {
+    const { data, error } = await supabase
+      .from('renaissance_axes')
+      .select('*, renaissance_phrases(*)')
+      .eq('id', axeId)
+      .single();
+    if (error) return null;
+    if (!data) return null;
+    return {
+      ...data,
+      phrases: data.renaissance_phrases || []
+    };
+  }
 
   /**
    * Récupère les sélections d'axes d'un utilisateur
