@@ -7,17 +7,8 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
 import { programmeSupabaseService } from '../../lib/programmeSupabaseService';
-
-// Types temporaires en attendant la création du fichier de types
-interface RenaissanceStats {
-  totalAxesSelected: number;
-  axesCompleted: number;
-  totalProgress: number; // 0-100%
-  discoveryCompleted: number;
-  encrageCompleted: number;
-  averageAccuracy: number;
-  totalTimeSpent: number; // en minutes
-}
+import { renaissanceService } from '../../lib/services/renaissanceService';
+import type { RenaissanceStats } from '@/lib/types/renaissance';
 
 // Composant pour les utilisateurs non éligibles
 const NotEligibleMessage = () => {
@@ -212,49 +203,8 @@ export default function RenaissancePage() {
 
   const loadUserStats = async (userId: string) => {
     try {
-      // Récupérer les sélections d'axes de l'utilisateur
-      const { data: selections, error: selectionsError } = await supabase
-        .from('user_renaissance_selection')
-        .select('*')
-        .eq('user_id', userId);
-
-      if (selectionsError) {
-        console.error('Erreur lors du chargement des sélections:', selectionsError);
-        return;
-      }
-
-      // Récupérer les progrès
-      const { data: progress, error: progressError } = await supabase
-        .from('user_renaissance_progress')
-        .select('*')
-        .eq('user_id', userId);
-
-      if (progressError) {
-        console.error('Erreur lors du chargement des progrès:', progressError);
-        return;
-      }
-
-      // Calculer les statistiques
-      const totalAxesSelected = selections?.length || 0;
-      const axesCompleted = selections?.filter(s => s.is_completed).length || 0;
-      const totalProgress = totalAxesSelected > 0 ? Math.round((axesCompleted / totalAxesSelected) * 100) : 0;
-      
-      // Calculer les étapes complétées
-      const discoveryCompleted = progress?.filter(p => p.stage === 'discovery' && p.stage_completed).length || 0;
-      const encrageCompleted = progress?.filter(p => p.stage === 'level3' && p.stage_completed).length || 0;
-
-      const stats: RenaissanceStats = {
-        totalAxesSelected,
-        axesCompleted,
-        totalProgress,
-        discoveryCompleted,
-        encrageCompleted,
-        averageAccuracy: 85, // À calculer plus tard avec les vraies tentatives
-        totalTimeSpent: 120 // À calculer plus tard
-      };
-
+      const stats = await renaissanceService.getUserStats(userId);
       setUserStats(stats);
-
     } catch (error) {
       console.error('Erreur lors du chargement des statistiques:', error);
     }

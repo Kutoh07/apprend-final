@@ -4,16 +4,7 @@
 'use client';
 
 import React from 'react';
-
-export interface RenaissanceAxe {
-  id: string;
-  name: string;
-  icon: string;
-  description: string;
-  sortOrder: number;
-  isActive: boolean;
-  isCustomizable: boolean;
-}
+import type { RenaissanceAxe } from '@/lib/types/renaissance';
 
 interface AxeSelectionCardProps {
   axe: RenaissanceAxe;
