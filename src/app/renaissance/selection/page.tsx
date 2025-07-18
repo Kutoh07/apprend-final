@@ -130,7 +130,8 @@ export default function AxeSelectionPage() {
       router.push(`/renaissance/${selectedAxes[0]}`);
 
     } catch (error) {
-      console.error('Erreur lors de la validation:', error);
+      const message = error instanceof Error ? error.message : JSON.stringify(error);
+      console.error('Erreur lors de la validation:', message);
     } finally {
       setSaving(false);
     }

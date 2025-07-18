@@ -155,14 +155,13 @@ export class RenaissanceSupabaseService {
         .insert(selections);
 
       if (error) {
-        console.error('Erreur sauvegarde sélection:', error);
-        throw error;
+        console.error('Erreur sauvegarde sélection:', error.message || error);
       }
 
       console.log('✅ Sélection sauvegardée:', selections.length, 'axes');
 
     } catch (error) {
-      console.error('Erreur saveUserSelection:', error);
+      console.error('Erreur saveUserSelection:', error instanceof Error ? error.message : error);
       throw error;
     }
   }
