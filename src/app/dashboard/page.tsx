@@ -15,6 +15,8 @@ import { SkillBar } from './components/SkillBar';
 import { ProgressDisplay } from './components/ProgressDisplay';
 import { ActionCardComponent } from './components/ActionCard';
 import { LoadingSpinner } from './components/LoadingSpinner';
+import { renaissanceService } from '../../lib/services/renaissanceService';
+import type { RenaissanceStats } from '@/lib/types/renaissance';
 
 // ====== UTILITAIRES PURS ======
 const skillsConfig: Omit<Skill, 'value'>[] = [
@@ -53,7 +55,7 @@ const createSkills = (userProgress?: UserProgress): Skill[] => {
   }));
 };
 
-const createLevels = (averageProgress: number, programmeData: ProgrammeData | null): Level[] => [
+const createLevels = (averageProgress: number, programmeData: ProgrammeData | null, renaissanceStats: RenaissanceStats | null): Level[] => [
   {
     name: "PERSONNALISÉ",
     color: "from-pink-400 to-pink-600",
@@ -74,9 +76,9 @@ const createLevels = (averageProgress: number, programmeData: ProgrammeData | nu
     name: "RENAISSANCE",
     color: "from-indigo-400 to-indigo-600", 
     icon: Award,
-    progress: averageProgress >= 100 ? 100 : Math.max(0, (averageProgress - 60) / 40) * 100,
+    progress: renaissanceStats ? renaissanceStats.totalProgress : 0, // Utiliser les vraies stats
     description: "Transformation profonde",
-    isClickable: false
+    isClickable: programmeData ? programmeData.overallProgress >= 100 : false
   },
   {
     name: "ÉVOLUTION",
@@ -133,6 +135,7 @@ export default function DashboardPage() {
 
   // Handlers
   const handleNavigate = (path: string) => router.push(path);
+  const [renaissanceStats, setRenaissanceStats] = useState<RenaissanceStats | null>(null);
   
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -142,20 +145,36 @@ export default function DashboardPage() {
     router.push('/');
   };
 
+  const loadRenaissanceStats = async (userId: string) => {
+  try {
+    const stats = await renaissanceService.getUserStats(userId);
+    setRenaissanceStats(stats);
+  } catch (error) {
+    console.error('Erreur lors du chargement des statistiques Renaissance:', error);
+    // En cas d'erreur, on laisse renaissanceStats à null (progression = 0)
+  }
+};
+
   const handleLevelClick = (level: Level) => {
     const routeMap: Record<string, string> = {
       "PERSONNALISÉ": '/personalisation',
       "PERSONALISE": '/personalisation',
-      "PROGRAMME": '/programme'
+      "PROGRAMME": '/programme',
+      "RENAISSANCE": '/renaissance'
     };
     
     const route = routeMap[level.name];
-    if (route) {
-      router.push(route);
-    } else {
-      alert(`${level.name} : Cette fonctionnalité sera bientôt disponible !`);
+  if (route) {
+    // Vérification spéciale pour Renaissance
+    if (level.name === "RENAISSANCE" && programmeData && programmeData.overallProgress < 100) {
+      alert("Vous devez compléter 100% du programme pour accéder à Renaissance !");
+      return;
     }
-  };
+    router.push(route);
+  } else {
+    alert(`${level.name} : Cette fonctionnalité sera bientôt disponible !`);
+  }
+};
 
   // Chargement des données
   useEffect(() => {
@@ -176,6 +195,11 @@ export default function DashboardPage() {
         // Si le programme n'existe pas, l'initialiser seulement
         if (!programme) {
           programme = await programmeSupabaseService.initializeProgramme(session.user.id);
+        }
+
+        // Charger les statistiques Renaissance si le programme est complété
+        if (programme && programme.overallProgress >= 100) {
+          await loadRenaissanceStats(session.user.id);
         }
 
         const userData: User = {
@@ -213,7 +237,7 @@ export default function DashboardPage() {
   // Calculs dérivés
   const skills = user ? createSkills(user.progress) : createSkills();
   const averageProgress = calculateAverageProgress(programmeData, skills);
-  const levels = createLevels(averageProgress, programmeData);
+  const levels = createLevels(averageProgress, programmeData, renaissanceStats);
   const progressInfo = getProgressMessage(averageProgress);
   
   const actionCards: ActionCard[] = [
