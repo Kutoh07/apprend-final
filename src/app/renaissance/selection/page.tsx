@@ -6,242 +6,10 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../../lib/supabase';
-
-// Types temporaires
-interface RenaissanceAxe {
-  id: string;
-  name: string;
-  icon: string;
-  description: string;
-  sortOrder: number;
-  isActive: boolean;
-  isCustomizable: boolean;
-}
-
-interface CustomAxeData {
-  name: string;
-  phrases: string[];
-}
-
-// Composant de carte de sélection d'axe
-const AxeSelectionCard = ({ 
-  axe, 
-  isSelected, 
-  onToggle,
-  disabled = false 
-}: { 
-  axe: RenaissanceAxe; 
-  isSelected: boolean; 
-  onToggle: (axeId: string) => void;
-  disabled?: boolean;
-}) => {
-  const handleClick = () => {
-    if (!disabled) {
-      onToggle(axe.id);
-    }
-  };
-
-  return (
-    <div
-      onClick={handleClick}
-      className={`
-        relative p-6 rounded-2xl border-2 cursor-pointer transition-all duration-200 transform hover:scale-105
-        ${isSelected 
-          ? 'border-purple-500 bg-purple-50 shadow-lg' 
-          : 'border-gray-200 bg-white hover:border-purple-300 hover:shadow-md'
-        }
-        ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
-      `}
-    >
-      {/* Badge sélectionné */}
-      {isSelected && (
-        <div className="absolute -top-2 -right-2 w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center">
-          <span className="text-white text-sm">✓</span>
-        </div>
-      )}
-
-      {/* Contenu de la carte */}
-      <div className="text-center">
-        <div className="text-4xl mb-4">{axe.icon}</div>
-        <h3 className="font-bold text-lg text-gray-800 mb-2">{axe.name}</h3>
-        <p className="text-sm text-gray-600 leading-relaxed">{axe.description}</p>
-      </div>
-
-      {/* Indicateur spécial pour axe personnalisé */}
-      {axe.isCustomizable && (
-        <div className="mt-4 text-center">
-          <span className="inline-block bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs px-3 py-1 rounded-full">
-            Personnalisable
-          </span>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// Composant de modal pour axe personnalisé
-const CustomAxeModal = ({ 
-  isOpen, 
-  onClose, 
-  onSave 
-}: { 
-  isOpen: boolean; 
-  onClose: () => void; 
-  onSave: (data: CustomAxeData) => void; 
-}) => {
-  const [axeName, setAxeName] = useState('');
-  const [phrases, setPhrases] = useState<string[]>(['', '', '']);
-  const [errors, setErrors] = useState<string[]>([]);
-
-  const addPhrase = () => {
-    if (phrases.length < 10) {
-      setPhrases([...phrases, '']);
-    }
-  };
-
-  const removePhrase = (index: number) => {
-    if (phrases.length > 3) {
-      setPhrases(phrases.filter((_, i) => i !== index));
-    }
-  };
-
-  const updatePhrase = (index: number, value: string) => {
-    const newPhrases = [...phrases];
-    newPhrases[index] = value;
-    setPhrases(newPhrases);
-  };
-
-  const validateAndSave = () => {
-    const newErrors: string[] = [];
-
-    if (!axeName.trim()) {
-      newErrors.push('Le nom de l\'axe est obligatoire');
-    }
-
-    const validPhrases = phrases.filter(p => p.trim());
-    if (validPhrases.length < 3) {
-      newErrors.push('Minimum 3 phrases requises');
-    }
-
-    if (newErrors.length > 0) {
-      setErrors(newErrors);
-      return;
-    }
-
-    onSave({
-      name: axeName.trim(),
-      phrases: validPhrases
-    });
-
-    // Reset
-    setAxeName('');
-    setPhrases(['', '', '']);
-    setErrors([]);
-    onClose();
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-8">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-800">Créer un axe personnalisé</h2>
-            <button
-              onClick={onClose}
-              className="text-gray-500 hover:text-gray-700 text-2xl"
-            >
-              ×
-            </button>
-          </div>
-
-          {/* Erreurs */}
-          {errors.length > 0 && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
-              <ul className="text-red-600 text-sm">
-                {errors.map((error, index) => (
-                  <li key={index}>• {error}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Nom de l'axe */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Nom de votre axe personnalisé
-            </label>
-            <input
-              type="text"
-              value={axeName}
-              onChange={(e) => setAxeName(e.target.value)}
-              placeholder="Ex: Confiance entrepreneuriale"
-              className="w-full p-3 border border-gray-300 rounded-xl focus:border-purple-500 focus:outline-none"
-              maxLength={50}
-            />
-          </div>
-
-          {/* Phrases */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Vos phrases (3 à 10 phrases)
-            </label>
-            <div className="space-y-3">
-              {phrases.map((phrase, index) => (
-                <div key={index} className="flex gap-2">
-                  <div className="flex-1">
-                    <input
-                      type="text"
-                      value={phrase}
-                      onChange={(e) => updatePhrase(index, e.target.value)}
-                      placeholder={`Phrase ${index + 1}...`}
-                      className="w-full p-3 border border-gray-300 rounded-xl focus:border-purple-500 focus:outline-none"
-                      maxLength={200}
-                    />
-                  </div>
-                  {phrases.length > 3 && (
-                    <button
-                      onClick={() => removePhrase(index)}
-                      className="px-3 py-2 text-red-500 hover:bg-red-50 rounded-xl"
-                    >
-                      🗑️
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {phrases.length < 10 && (
-              <button
-                onClick={addPhrase}
-                className="mt-3 px-4 py-2 text-purple-600 hover:bg-purple-50 rounded-xl transition-colors"
-              >
-                + Ajouter une phrase
-              </button>
-            )}
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-4">
-            <button
-              onClick={onClose}
-              className="flex-1 py-3 px-6 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors"
-            >
-              Annuler
-            </button>
-            <button
-              onClick={validateAndSave}
-              className="flex-1 py-3 px-6 bg-purple-600 hover:bg-purple-700 text-white rounded-xl transition-colors"
-            >
-              Sauvegarder
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+import { renaissanceService } from '../../../lib/services/renaissanceService';
+import type { RenaissanceAxe } from '@/lib/types/renaissance';
+import AxeSelectionCard from '../components/AxeSelectionCard';
+import CustomAxeModal, { CustomAxeData } from '../components/CustomAxeModal';
 
 export default function AxeSelectionPage() {
   const router = useRouter();
@@ -269,28 +37,8 @@ export default function AxeSelectionPage() {
 
       setUserId(session.user.id);
 
-      // Charger les axes disponibles
-      const { data: axesData, error: axesError } = await supabase
-        .from('renaissance_axes')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order');
-
-      if (axesError) {
-        console.error('Erreur lors du chargement des axes:', axesError);
-        return;
-      }
-
-      const axes: RenaissanceAxe[] = axesData.map(axe => ({
-        id: axe.id,
-        name: axe.name,
-        icon: axe.icon,
-        description: axe.description,
-        sortOrder: axe.sort_order,
-        isActive: axe.is_active,
-        isCustomizable: axe.is_customizable
-      }));
-
+      // Charger les axes disponibles via le service
+      const axes = await renaissanceService.getAvailableAxes();
       setAvailableAxes(axes);
 
       // Charger les sélections existantes
@@ -362,33 +110,16 @@ export default function AxeSelectionPage() {
 
     setSaving(true);
     try {
-      // Supprimer les anciennes sélections
-      await supabase
-        .from('user_renaissance_selection')
-        .delete()
-        .eq('user_id', userId);
-
-      // Créer les nouvelles sélections
       const selections = selectedAxes.map((axeId, index) => {
         const axe = availableAxes.find(a => a.id === axeId);
         return {
-          user_id: userId,
-          axe_id: axeId,
-          selection_order: index + 1,
-          custom_name: axe?.isCustomizable ? customAxeData?.name : null,
-          custom_phrases: axe?.isCustomizable ? customAxeData?.phrases : null,
-          selected_at: new Date().toISOString()
+          axeId,
+          customName: axe?.isCustomizable ? customAxeData?.name : undefined,
+          customPhrases: axe?.isCustomizable ? customAxeData?.phrases : undefined,
         };
       });
 
-      const { error } = await supabase
-        .from('user_renaissance_selection')
-        .insert(selections);
-
-      if (error) {
-        console.error('Erreur lors de la sauvegarde:', error);
-        return;
-      }
+      await renaissanceService.saveAxeSelection(userId, selections);
 
       // Rediriger vers le premier axe
       router.push(`/renaissance/${selectedAxes[0]}`);
