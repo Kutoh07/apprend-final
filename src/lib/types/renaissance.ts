@@ -60,17 +60,44 @@ export interface TextDifference {
 }
 
 export interface GameSession {
+  id: string;
+  userId: string;
   axeId: string;
   stage: string;
-  phrases: RenaissancePhrase[];
+  flashDurationMs: number;
+  phrasesOrder: number[];
   currentPhraseIndex: number;
-  flashDuration: number;
-  attempts: PhraseAttempt[];
+  isActive: boolean;
   isCompleted: boolean;
-  accuracy: number;
+  correctCount: number;
+  totalAttempts: number;
+  sessionAccuracy: number;
+  startedAt: Date;
+  completedAt?: Date;
+  lastActivityAt: Date;
+}
+
+export interface DetailedAttempt extends PhraseAttempt {
+  sessionId: string;
+  phraseId: string;
+  phraseNumber: number;
+  similarityScore?: number;
+  errorAnalysis?: any;
+  shownAt: Date;
 }
 
 export interface RenaissanceStats {
+  // Types existants + nouveaux
+  totalAxesSelected: number;
+  axesCompleted: number;
+  totalProgress: number;
+  averageAccuracy: number;
+  totalTimeSpent: number; // ✅ CHANGÉ: était en heures
+  lastActivityDate?: Date; // ✅ NOUVEAU
+}
+
+
+/*export interface RenaissanceStats {
   totalAxesSelected: number;
   axesCompleted: number;
   totalProgress: number; // 0-100%
@@ -78,4 +105,4 @@ export interface RenaissanceStats {
   encrageCompleted: number;
   averageAccuracy: number;
   totalTimeSpent: number; // en minutes
-}
+}*/

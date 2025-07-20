@@ -217,19 +217,23 @@ export default function EncragePage({ params }: { params: Promise<{ axeId: strin
     return indices;
   };
 
-  const startGame = () => {
-    if (state.phrases.length === 0 || !state.currentLevel) return;
+  const startGame = async () => {
+    if (!state.currentLevel || !userId) return;
+    
+    // Créer session d'encrage
+    const session = await renaissanceService.startGameSession(
+      userId,
+      axeId,
+      state.currentLevel.stage,
+      state.currentLevel.flashDuration,
+      state.shuffledOrder
+    );
     
     setState(prev => ({
       ...prev,
-      currentPhraseIndex: 0,
-      userInput: '',
-      isShowingPhrase: true,
-      showResult: false,
-      attempts: [],
-      lastResult: null,
-      showFinalResults: false,
-      sessionStartTime: Date.now()
+      gameSession: session,
+      sessionStartTime: Date.now(),
+      attempts: []
     }));
   };
 
@@ -264,7 +268,7 @@ export default function EncragePage({ params }: { params: Promise<{ axeId: strin
     // Enregistrer la tentative en base
     if (userId) {
       try {
-        await renaissanceService.recordAttempt(
+        await renaissanceService.recordAttemptLegacy(
           userId,
           axeId,
           state.currentLevel.stage,

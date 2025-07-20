@@ -1,6 +1,7 @@
 // Service principal Renaissance
 // src/lib/services/renaissanceService.ts
 
+import { supabase } from '../supabase';
 import { programmeSupabaseService } from '../programmeSupabaseService';
 import { renaissanceSupabaseService } from './renaissanceSupabaseService';
 
@@ -55,6 +56,10 @@ export interface PhraseAttempt {
   timestamp: Date;
   flashDuration: number;
   differences?: TextDifference[];
+  responseTime?: number;
+  expectedText?: string;
+  similarityScore?: number;
+  shownAt?: Date;
 }
 
 export interface TextDifference {
@@ -64,6 +69,7 @@ export interface TextDifference {
 }
 
 export interface GameSession {
+  id?: string;
   axeId: string;
   stage: string;
   phrases: RenaissancePhrase[];
@@ -213,9 +219,180 @@ export class RenaissanceService {
   }
 
   /**
-   * Enregistrer une tentative
+   * Démarrer une session de jeu (nouvelle approche avec tables dédiées)
+   */
+  async startGameSession(
+    userId: string,
+    axeId: string,
+    stage: string,
+    flashDuration: number,
+    phrasesOrder: number[]
+  ): Promise<any> {
+    try {
+      const { data, error } = await supabase
+        .from('renaissance_game_sessions')
+        .insert({
+          user_id: userId,
+          axe_id: axeId,
+          stage,
+          flash_duration_ms: flashDuration,
+          phrases_order: phrasesOrder,
+          is_active: true
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Erreur startGameSession:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Enregistrer une tentative (nouvelle approche)
    */
   async recordAttempt(
+    sessionId: string,
+    phraseId: string,
+    phraseNumber: number,
+    attempt: PhraseAttempt
+  ): Promise<void> {
+    try {
+      // Insérer dans la table dédiée
+      const { error: attemptError } = await supabase
+        .from('renaissance_attempts')
+        .insert({
+          session_id: sessionId,
+          phrase_id: phraseId,
+          phrase_number: phraseNumber,
+          user_input: attempt.userInput,
+          expected_text: attempt.expectedText || '',
+          is_correct: attempt.isCorrect,
+          response_time_ms: attempt.responseTime || null,
+          similarity_score: attempt.similarityScore || null,
+          error_analysis: attempt.differences || null,
+          shown_at: attempt.shownAt || new Date().toISOString(),
+          submitted_at: new Date().toISOString()
+        });
+
+      if (attemptError) throw attemptError;
+
+      // Mettre à jour la session
+      await this.updateSessionStats(sessionId, attempt.isCorrect);
+    } catch (error) {
+      console.error('Erreur recordAttempt:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Mise à jour des stats de session
+   */
+  private async updateSessionStats(sessionId: string, isCorrect: boolean): Promise<void> {
+    try {
+      // Utiliser une fonction RPC si elle existe, sinon fallback sur update direct
+      const { error } = await supabase.rpc('update_session_stats', {
+        p_session_id: sessionId,
+        p_is_correct: isCorrect
+      });
+      
+      if (error) {
+        // Fallback: mise à jour manuelle
+        console.warn('RPC update_session_stats non disponible, utilisation du fallback');
+        await this.updateSessionStatsManual(sessionId, isCorrect);
+      }
+    } catch (error) {
+      console.error('Erreur updateSessionStats:', error);
+      // Fallback silencieux
+      await this.updateSessionStatsManual(sessionId, isCorrect);
+    }
+  }
+
+  /**
+   * Fallback pour mise à jour manuelle des stats
+   */
+  private async updateSessionStatsManual(sessionId: string, isCorrect: boolean): Promise<void> {
+    try {
+      // Récupérer les stats actuelles
+      const { data: session, error: fetchError } = await supabase
+        .from('renaissance_game_sessions')
+        .select('correct_count, total_attempts')
+        .eq('id', sessionId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const newTotalAttempts = (session.total_attempts || 0) + 1;
+      const newCorrectCount = (session.correct_count || 0) + (isCorrect ? 1 : 0);
+      const newAccuracy = (newCorrectCount / newTotalAttempts) * 100;
+
+      // Mettre à jour
+      const { error: updateError } = await supabase
+        .from('renaissance_game_sessions')
+        .update({
+          total_attempts: newTotalAttempts,
+          correct_count: newCorrectCount,
+          session_accuracy: newAccuracy,
+          last_activity_at: new Date().toISOString()
+        })
+        .eq('id', sessionId);
+
+      if (updateError) throw updateError;
+    } catch (error) {
+      console.error('Erreur updateSessionStatsManual:', error);
+    }
+  }
+
+  /**
+   * Récupérer une session active
+   */
+  async getActiveSession(userId: string, axeId: string): Promise<any> {
+    try {
+      const { data, error } = await supabase
+        .from('renaissance_game_sessions')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('axe_id', axeId)
+        .eq('is_active', true)
+        .order('started_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+      return data;
+    } catch (error) {
+      console.error('Erreur getActiveSession:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Compléter une session
+   */
+  async completeSession(sessionId: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('renaissance_game_sessions')
+        .update({
+          is_completed: true,
+          is_active: false,
+          completed_at: new Date().toISOString()
+        })
+        .eq('id', sessionId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Erreur completeSession:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Enregistrer une tentative (ancienne méthode - garde pour compatibilité)
+   */
+  async recordAttemptLegacy(
     userId: string,
     axeId: string,
     stage: string,
@@ -237,10 +414,69 @@ export class RenaissanceService {
   }
 
   /**
-   * Obtenir les statistiques utilisateur
+   * Obtenir les statistiques utilisateur (nouvelle approche avec cache)
    */
   async getUserStats(userId: string): Promise<RenaissanceStats> {
-    return this.supabaseService.getUserStats(userId);
+    try {
+      const { data, error } = await supabase
+        .from('renaissance_user_stats_cache')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+      
+      // Si pas de cache, utiliser l'ancienne méthode
+      if (!data) {
+        return this.getUserStatsLegacy(userId);
+      }
+
+      return {
+        totalAxesSelected: data.total_axes_selected || 0,
+        axesCompleted: data.total_axes_completed || 0,
+        totalProgress: data.overall_progress_percentage || 0,
+        discoveryCompleted: 0, // À calculer si nécessaire
+        encrageCompleted: 0, // À calculer si nécessaire
+        averageAccuracy: data.global_accuracy || 0,
+        totalTimeSpent: data.total_time_spent_minutes || 0,
+        totalAttempts: data.total_attempts || 0,
+        bestAccuracy: 0, // À calculer si nécessaire
+        worstAccuracy: 0, // À calculer si nécessaire
+        axesStats: [], // À implémenter si nécessaire
+        masteryLevel: 'débutant',
+        improvementTips: []
+      };
+    } catch (error) {
+      console.error('Erreur getUserStats:', error);
+      return this.getUserStatsLegacy(userId);
+    }
+  }
+
+  /**
+   * Obtenir les statistiques utilisateur (ancienne méthode - fallback)
+   */
+  async getUserStatsLegacy(userId: string): Promise<RenaissanceStats> {
+    try {
+      return await this.supabaseService.getUserStats(userId);
+    } catch (error) {
+      console.error('Erreur getUserStatsLegacy:', error);
+      // Retourner des stats vides par défaut
+      return {
+        totalAxesSelected: 0,
+        axesCompleted: 0,
+        totalProgress: 0,
+        discoveryCompleted: 0,
+        encrageCompleted: 0,
+        averageAccuracy: 0,
+        totalTimeSpent: 0,
+        totalAttempts: 0,
+        bestAccuracy: 0,
+        worstAccuracy: 0,
+        axesStats: [],
+        masteryLevel: 'débutant',
+        improvementTips: []
+      };
+    }
   }
 
   /**
@@ -258,7 +494,8 @@ export class RenaissanceService {
       isCorrect,
       timestamp: new Date(),
       flashDuration: 500, // À adapter selon le contexte
-      differences
+      differences,
+      expectedText: targetPhrase
     };
   }
 

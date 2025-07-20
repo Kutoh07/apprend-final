@@ -146,14 +146,9 @@ export default function DashboardPage() {
   };
 
   const loadRenaissanceStats = async (userId: string) => {
-  try {
-    const stats = await renaissanceService.getUserStats(userId);
-    setRenaissanceStats(stats);
-  } catch (error) {
-    console.error('Erreur lors du chargement des statistiques Renaissance:', error);
-    // En cas d'erreur, on laisse renaissanceStats à null (progression = 0)
-  }
-};
+  // Plus rapide grâce au cache !
+  const stats = await renaissanceService.getUserStats(userId);
+  setRenaissanceStats(stats); // Direct, pas de calcul
 
   const handleLevelClick = (level: Level) => {
     const routeMap: Record<string, string> = {
@@ -164,17 +159,17 @@ export default function DashboardPage() {
     };
     
     const route = routeMap[level.name];
-  if (route) {
-    // Vérification spéciale pour Renaissance
-    if (level.name === "RENAISSANCE" && programmeData && programmeData.overallProgress < 100) {
-      alert("Vous devez compléter 100% du programme pour accéder à Renaissance !");
-      return;
+    if (route) {
+      // Vérification spéciale pour Renaissance
+      if (level.name === "RENAISSANCE" && programmeData && programmeData.overallProgress < 100) {
+        alert("Vous devez compléter 100% du programme pour accéder à Renaissance !");
+        return;
+      }
+      router.push(route);
+    } else {
+      alert(`${level.name} : Cette fonctionnalité sera bientôt disponible !`);
     }
-    router.push(route);
-  } else {
-    alert(`${level.name} : Cette fonctionnalité sera bientôt disponible !`);
-  }
-};
+  };
 
   // Chargement des données
   useEffect(() => {
@@ -334,4 +329,5 @@ export default function DashboardPage() {
       )}
     </div>
   );
+}
 }

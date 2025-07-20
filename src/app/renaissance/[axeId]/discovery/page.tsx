@@ -9,7 +9,7 @@ import { supabase } from '@/lib/supabase';
 import FlashPhraseGame from '../../components/FlashPhraseGame';
 import { quickCompare } from '@/lib/utils/stringComparison';
 import type { GameSession, PhraseAttempt, RenaissancePhrase } from '@/lib/types/renaissance';
-
+import { renaissanceService } from '@/lib/services/renaissanceService';
 
 export default function DiscoveryPage({ params }: { params: Promise<{ axeId: string }> }) {
   const router = useRouter();
@@ -30,6 +30,51 @@ export default function DiscoveryPage({ params }: { params: Promise<{ axeId: str
   useEffect(() => {
     loadUserAndPhrases();
   }, [axeId]);
+
+  // Initialiser la session quand les phrases sont chargées
+  useEffect(() => {
+    if (userId && phrases.length > 0) {
+      initializeGameSession();
+    }
+  }, [userId, phrases]);
+
+  const shufflePhrases = (length: number): number[] => {
+    const indices = Array.from({ length }, (_, i) => i);
+    for (let i = indices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [indices[i], indices[j]] = [indices[j], indices[i]];
+    }
+    return indices;
+  };
+
+  const initializeGameSession = async () => {
+    if (!userId) return;
+
+    try {
+      // Vérifier s'il y a une session active
+      let session = await renaissanceService.getActiveSession(userId, axeId);
+      
+      if (!session) {
+        // Créer nouvelle session
+        const phrasesOrder = shufflePhrases(phrases.length);
+        session = await renaissanceService.startGameSession(
+          userId,
+          axeId,
+          'discovery',
+          500, // 0.5s pour discovery
+          phrasesOrder
+        );
+      }
+      
+      setGameSession(session);
+      // Reprendre où on en était
+      if (session.current_phrase_index !== undefined) {
+        setCurrentPhraseIndex(session.current_phrase_index);
+      }
+    } catch (error) {
+      console.error('Erreur lors de l\'initialisation de la session:', error);
+    }
+  };
 
   const loadUserAndPhrases = async () => {
     try {
@@ -99,6 +144,18 @@ export default function DiscoveryPage({ params }: { params: Promise<{ axeId: str
     }, 500);
   };
 
+  const createAttemptObject = (userInput: string, currentPhrase: string): PhraseAttempt => {
+    const comparison = quickCompare(userInput.trim(), currentPhrase);
+    
+    return {
+      userInput: userInput.trim(),
+      isCorrect: comparison.isCorrect,
+      timestamp: new Date(),
+      flashDuration: 500,
+      differences: comparison.differences
+    };
+  };
+
   const handlePhraseSubmit = async () => {
     if (showResult) {
       // Passer à la phrase suivante
@@ -111,47 +168,67 @@ export default function DiscoveryPage({ params }: { params: Promise<{ axeId: str
         setLastResult(null);
         showCurrentPhrase();
       } else {
-        // Fin de la découverte
+        // Fin de la découverte - compléter la session si elle existe
+        if (gameSession && 'id' in gameSession && gameSession.id) {
+          try {
+            await renaissanceService.completeSession(gameSession.id);
+          } catch (error) {
+            console.error('Erreur lors de la completion de session:', error);
+          }
+        }
         router.push(`/renaissance/${axeId}/encrage`);
       }
       return;
     }
 
-    if (!gameSession && !userInput.trim()) return;
+    if (!userInput.trim()) return;
     
-    // Vérifier la réponse avec l'utilitaire de comparaison
-    const comparison = quickCompare(userInput.trim(), currentPhrase);
-
-    const attempt: PhraseAttempt = {
-      userInput: userInput.trim(),
-      isCorrect: comparison.isCorrect,
-      timestamp: new Date(),
-      flashDuration: 500,
-      differences: comparison.differences
-    };
-
+    // Créer l'objet attempt
+    const attempt = createAttemptObject(userInput, currentPhrase);
     setAttempts(prev => [...prev, attempt]);
     setLastResult(attempt);
 
-    // Enregistrer la tentative en base de données
-    if (userId) {
+    // Enregistrer la tentative
+    if (gameSession && 'id' in gameSession && gameSession.id) {
       try {
-        await supabase
-          .from('user_renaissance_progress')
-          .upsert({
-            user_id: userId,
-            axe_id: axeId,
-            stage: 'discovery',
-            current_phrase: currentPhraseIndex + 1,
-            attempts: { [currentPhraseIndex + 1]: [attempt] },
-            last_attempt_at: new Date().toISOString()
-          });
+        // Nouvelle méthode avec session
+        const currentPhraseObj = phrases[currentPhraseIndex];
+        await renaissanceService.recordAttempt(
+          gameSession.id,
+          currentPhraseObj.id,
+          currentPhraseIndex + 1,
+          attempt
+        );
       } catch (error) {
-        console.error('Erreur lors de la sauvegarde:', error);
+        console.error('Erreur lors de l\'enregistrement avec session:', error);
+        // Fallback vers l'ancienne méthode
+        if (userId) {
+          await fallbackSaveAttempt(attempt);
+        }
       }
+    } else if (userId) {
+      // Fallback vers l'ancienne méthode si pas de session
+      await fallbackSaveAttempt(attempt);
     }
 
     setShowResult(true);
+  };
+
+  const fallbackSaveAttempt = async (attempt: PhraseAttempt) => {
+    try {
+      await supabase
+        .from('user_renaissance_progress')
+        .upsert({
+          user_id: userId,
+          axe_id: axeId,
+          stage: 'discovery',
+          current_phrase: currentPhraseIndex + 1,
+          attempts: { [currentPhraseIndex + 1]: [attempt] },
+          last_attempt_at: new Date().toISOString()
+        });
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde fallback:', error);
+    }
   };
 
   if (loading) {
@@ -192,7 +269,7 @@ export default function DiscoveryPage({ params }: { params: Promise<{ axeId: str
               Découverte - Flash 0.5s
             </h1>
             <p className="text-lg text-gray-600 mb-8">
-              Vous allez voir 10 phrases s'afficher pendant 0.5 seconde chacune.
+              Vous allez voir {phrases.length} phrases s'afficher pendant 0.5 seconde chacune.
               Votre objectif est de les retaper le plus fidèlement possible.
             </p>
             <button
@@ -208,18 +285,18 @@ export default function DiscoveryPage({ params }: { params: Promise<{ axeId: str
   }
 
   return (
-  <FlashPhraseGame
-    key={currentPhraseIndex}
-    phrase={currentPhrase}
-    userInput={userInput}
-    onInputChange={setUserInput}
-    onSubmit={handlePhraseSubmit}
-    flashDuration={500}
-    showResult={showResult}
-    isShowingPhrase={isShowingPhrase}
-    result={lastResult ?? undefined}
-    phraseNumber={currentPhraseIndex + 1}
-    totalPhrases={phrases.length}
-  />
-);
+    <FlashPhraseGame
+      key={currentPhraseIndex}
+      phrase={currentPhrase}
+      userInput={userInput}
+      onInputChange={setUserInput}
+      onSubmit={handlePhraseSubmit}
+      flashDuration={500}
+      showResult={showResult}
+      isShowingPhrase={isShowingPhrase}
+      result={lastResult ?? undefined}
+      phraseNumber={currentPhraseIndex + 1}
+      totalPhrases={phrases.length}
+    />
+  );
 }
