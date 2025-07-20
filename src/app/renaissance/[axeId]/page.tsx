@@ -3,7 +3,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../../lib/supabase';
 
@@ -199,8 +199,9 @@ const StageCard = ({
   );
 };
 
-export default function AxePage({ params }: { params: { axeId: string } }) {
+export default function AxePage({ params }: { params: { axeId: string } | Promise<{ axeId: string }> }) {
   const router = useRouter();
+  const { axeId } = use(params) as { axeId: string };
   const [axe, setAxe] = useState<RenaissanceAxe | null>(null);
   const [userSelection, setUserSelection] = useState<UserAxeSelection | null>(null);
   const [stats, setStats] = useState<AxeStats | null>(null);
@@ -210,7 +211,7 @@ export default function AxePage({ params }: { params: { axeId: string } }) {
 
   useEffect(() => {
     loadAxeData();
-  }, [params.axeId]);
+  }, [axeId]);
 
   const loadAxeData = async () => {
     try {
@@ -228,7 +229,7 @@ export default function AxePage({ params }: { params: { axeId: string } }) {
       const { data: axeData, error: axeError } = await supabase
         .from('renaissance_axes')
         .select('*')
-        .eq('id', params.axeId)
+        .eq('id', axeId)
         .single();
 
       if (axeError || !axeData) {
@@ -242,11 +243,12 @@ export default function AxePage({ params }: { params: { axeId: string } }) {
         .from('user_renaissance_selection')
         .select('*')
         .eq('user_id', session.user.id)
-        .eq('axe_id', params.axeId)
+        .eq('axe_id', axeId)
         .single();
 
       if (selectionError || !selectionData) {
-        console.error('Axe non sélectionné:', selectionError);
+        const msg = selectionError?.message || 'non sélectionné';
+        console.error('Axe non sélectionné:', msg);
         router.push('/renaissance/selection');
         return;
       }
@@ -256,7 +258,7 @@ export default function AxePage({ params }: { params: { axeId: string } }) {
         .from('user_renaissance_progress')
         .select('*')
         .eq('user_id', session.user.id)
-        .eq('axe_id', params.axeId);
+        .eq('axe_id', axeId);
 
       if (progressError) {
         console.error('Erreur progrès:', progressError);
@@ -349,7 +351,7 @@ export default function AxePage({ params }: { params: { axeId: string } }) {
         .eq('id', userSelection.id);
 
       // Rediriger vers la découverte
-      router.push(`/renaissance/${params.axeId}/discovery`);
+      router.push(`/renaissance/${axeId}/discovery`);
 
     } catch (error) {
       console.error('Erreur lors du démarrage:', error);
@@ -358,9 +360,9 @@ export default function AxePage({ params }: { params: { axeId: string } }) {
 
   const handleStageClick = (stage: string) => {
     if (stage === 'discovery') {
-      router.push(`/renaissance/${params.axeId}/discovery`);
+      router.push(`/renaissance/${axeId}/discovery`);
     } else {
-      router.push(`/renaissance/${params.axeId}/encrage?level=${stage}`);
+      router.push(`/renaissance/${axeId}/encrage?level=${stage}`);
     }
   };
 

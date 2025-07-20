@@ -49,7 +49,7 @@ const NotEligibleMessage = () => {
 // Composant d'accueil Renaissance
 const RenaissanceWelcome = ({ stats }: { stats: RenaissanceStats | null }) => {
   const router = useRouter();
-  
+
   return (
     <div className="max-w-6xl mx-auto p-4">
       {/* Navigation et header */}
