@@ -3,7 +3,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, use } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '../../../../lib/supabase';
 import { renaissanceService } from '../../../../lib/services/renaissanceService';
@@ -45,9 +45,10 @@ interface EncrageState {
   sessionStartTime: number;
 }
 
-export default function EncragePage({ params }: { params: { axeId: string } }) {
+export default function EncragePage({ params }: { params: { axeId: string } | Promise<{ axeId: string }> }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { axeId } = use(params) as { axeId: string };
   const level = searchParams.get('level') as 'level1' | 'level2' | 'level3' || 'level1';
 
   const [state, setState] = useState<EncrageState>({
@@ -101,7 +102,7 @@ export default function EncragePage({ params }: { params: { axeId: string } }) {
 
   useEffect(() => {
     loadEncrageData();
-  }, [params.axeId, level]);
+  }, [axeId, level]);
 
   const loadEncrageData = async () => {
     try {
@@ -118,7 +119,7 @@ export default function EncragePage({ params }: { params: { axeId: string } }) {
       setUserId(session.user.id);
 
       // Charger l'axe avec ses phrases
-      const axeData = await renaissanceService.getAxeWithPhrases(params.axeId);
+      const axeData = await renaissanceService.getAxeWithPhrases(axeId);
       if (!axeData) {
         router.push('/renaissance');
         return;
@@ -131,7 +132,7 @@ export default function EncragePage({ params }: { params: { axeId: string } }) {
         .from('user_renaissance_selection')
         .select('*')
         .eq('user_id', session.user.id)
-        .eq('axe_id', params.axeId)
+        .eq('axe_id', axeId)
         .single();
 
       if (selectionError || !selectionData) {
@@ -143,7 +144,7 @@ export default function EncragePage({ params }: { params: { axeId: string } }) {
       const phrasesToUse = selectionData.custom_phrases && selectionData.custom_phrases.length > 0
         ? selectionData.custom_phrases.map((phrase: string, index: number) => ({
             id: `custom_${index}`,
-            axeId: params.axeId,
+            axeId: axeId,
             phraseNumber: index + 1,
             content: phrase
           }))
@@ -154,7 +155,7 @@ export default function EncragePage({ params }: { params: { axeId: string } }) {
         .from('user_renaissance_progress')
         .select('*')
         .eq('user_id', session.user.id)
-        .eq('axe_id', params.axeId);
+        .eq('axe_id', axeId);
 
       if (progressError) {
         console.error('Erreur chargement progrès:', progressError);
@@ -185,7 +186,7 @@ export default function EncragePage({ params }: { params: { axeId: string } }) {
       // Vérifier que le niveau demandé est débloqué
       const currentLevel = levels.find(l => l.stage === level);
       if (!currentLevel?.isUnlocked) {
-        router.push(`/renaissance/${params.axeId}`);
+        router.push(`/renaissance/${axeId}`);
         return;
       }
 
@@ -266,7 +267,7 @@ export default function EncragePage({ params }: { params: { axeId: string } }) {
       try {
         await renaissanceService.recordAttempt(
           userId,
-          params.axeId,
+          axeId,
           state.currentLevel.stage,
           state.currentPhraseIndex + 1,
           attempt
@@ -308,7 +309,7 @@ export default function EncragePage({ params }: { params: { axeId: string } }) {
     if (levelCompleted) {
       // Marquer le niveau comme complété
       try {
-        await renaissanceService.completeStage(userId, params.axeId, state.currentLevel.stage);
+        await renaissanceService.completeStage(userId, axeId, state.currentLevel.stage);
         console.log('✅ Niveau complété:', state.currentLevel.stage);
       } catch (error) {
         console.error('Erreur completion niveau:', error);
@@ -331,11 +332,11 @@ export default function EncragePage({ params }: { params: { axeId: string } }) {
       // Aller au niveau suivant ou retourner à l'axe si c'est le dernier niveau
       if (state.currentLevel.stage === 'level3') {
         // Dernier niveau complété, retourner à l'axe
-        router.push(`/renaissance/${params.axeId}`);
+        router.push(`/renaissance/${axeId}`);
       } else {
         // Aller au niveau suivant
         const nextLevel = state.currentLevel.stage === 'level1' ? 'level2' : 'level3';
-        router.push(`/renaissance/${params.axeId}/encrage?level=${nextLevel}`);
+        router.push(`/renaissance/${axeId}/encrage?level=${nextLevel}`);
       }
     } else {
       // Recommencer le niveau actuel
@@ -370,11 +371,11 @@ export default function EncragePage({ params }: { params: { axeId: string } }) {
   };
 
   const handleBackToAxe = () => {
-    router.push(`/renaissance/${params.axeId}`);
+    router.push(`/renaissance/${axeId}`);
   };
 
   const handleLevelChange = (newLevel: string) => {
-    router.push(`/renaissance/${params.axeId}/encrage?level=${newLevel}`);
+    router.push(`/renaissance/${axeId}/encrage?level=${newLevel}`);
   };
 
   if (loading) {
@@ -395,7 +396,7 @@ export default function EncragePage({ params }: { params: { axeId: string } }) {
           <div className="text-6xl mb-4">🔒</div>
           <div className="text-2xl text-red-600">Niveau non accessible</div>
           <button
-            onClick={() => router.push(`/renaissance/${params.axeId}`)}
+            onClick={() => router.push(`/renaissance/${axeId}`)}
             className="mt-4 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-6 rounded-xl transition-colors"
           >
             Retour à l'axe

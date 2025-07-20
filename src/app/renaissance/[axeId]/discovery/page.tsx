@@ -3,7 +3,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import FlashPhraseGame from '../../components/FlashPhraseGame';
@@ -11,8 +11,9 @@ import { quickCompare } from '@/lib/utils/stringComparison';
 import type { GameSession, PhraseAttempt, RenaissancePhrase } from '@/lib/types/renaissance';
 
 
-export default function DiscoveryPage({ params }: { params: { axeId: string } }) {
+export default function DiscoveryPage({ params }: { params: { axeId: string } | Promise<{ axeId: string }> }) {
   const router = useRouter();
+  const { axeId } = use(params) as { axeId: string };
   const [gameSession, setGameSession] = useState<GameSession | null>(null);
   const [currentPhrase, setCurrentPhrase] = useState<string>('');
   const [userInput, setUserInput] = useState<string>('');
@@ -28,7 +29,7 @@ export default function DiscoveryPage({ params }: { params: { axeId: string } })
   // Chargement initial
   useEffect(() => {
     loadUserAndPhrases();
-  }, []);
+  }, [axeId]);
 
   const loadUserAndPhrases = async () => {
     try {
@@ -51,7 +52,7 @@ export default function DiscoveryPage({ params }: { params: { axeId: string } })
           phrase_number,
           renaissance_axes!inner(id)
         `)
-        .eq('renaissance_axes.id', params.axeId)
+        .eq('renaissance_axes.id', axeId)
         .order('phrase_number');
 
       if (phrasesError) {
@@ -110,7 +111,7 @@ export default function DiscoveryPage({ params }: { params: { axeId: string } })
         showCurrentPhrase();
       } else {
         // Fin de la découverte
-        router.push(`/renaissance/${params.axeId}/encrage`);
+        router.push(`/renaissance/${axeId}/encrage`);
       }
       return;
     }
@@ -138,7 +139,7 @@ export default function DiscoveryPage({ params }: { params: { axeId: string } })
           .from('user_renaissance_progress')
           .upsert({
             user_id: userId,
-            axe_id: params.axeId,
+            axe_id: axeId,
             stage: 'discovery',
             current_phrase: currentPhraseIndex + 1,
             attempts: { [currentPhraseIndex + 1]: [attempt] },
