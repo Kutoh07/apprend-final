@@ -199,9 +199,9 @@ const StageCard = ({
   );
 };
 
-export default function AxePage({ params }: { params: { axeId: string } | Promise<{ axeId: string }> }) {
+export default function AxePage({ params }: { params: Promise<{ axeId: string }> }) {
   const router = useRouter();
-  const { axeId } = use(params) as { axeId: string };
+  const { axeId } = use(params);
   const [axe, setAxe] = useState<RenaissanceAxe | null>(null);
   const [userSelection, setUserSelection] = useState<UserAxeSelection | null>(null);
   const [stats, setStats] = useState<AxeStats | null>(null);

@@ -208,17 +208,18 @@ export default function DiscoveryPage({ params }: { params: Promise<{ axeId: str
   }
 
   return (
-    <FlashPhraseGame
-  phrase={currentPhrase}
-  userInput={userInput}
-  onInputChange={setUserInput}
-  onSubmit={handlePhraseSubmit}
-  flashDuration={500}
-  showResult={showResult}
-  isShowingPhrase={isShowingPhrase}
-  result={lastResult ?? undefined}
-  phraseNumber={currentPhraseIndex + 1}
-  totalPhrases={phrases.length}
-/>
-  );
+  <FlashPhraseGame
+    key={currentPhraseIndex}
+    phrase={currentPhrase}
+    userInput={userInput}
+    onInputChange={setUserInput}
+    onSubmit={handlePhraseSubmit}
+    flashDuration={500}
+    showResult={showResult}
+    isShowingPhrase={isShowingPhrase}
+    result={lastResult ?? undefined}
+    phraseNumber={currentPhraseIndex + 1}
+    totalPhrases={phrases.length}
+  />
+);
 }
