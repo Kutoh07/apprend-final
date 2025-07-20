@@ -106,11 +106,20 @@ export default function AxeSelectionPage() {
   };
 
   const handleValidateSelection = async () => {
-    if (!userId || selectedAxes.length < 3) return;
+    if (selectedAxes.length < 3) return;
 
     setSaving(true);
     try {
-      const selections = selectedAxes.map((axeId, index) => {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session?.user) {
+        router.push('/auth');
+        return;
+      }
+
+      const uid = session.user.id;
+      setUserId(uid);
+
+      const selections = selectedAxes.map((axeId) => {
         const axe = availableAxes.find(a => a.id === axeId);
         return {
           axeId,
@@ -119,13 +128,14 @@ export default function AxeSelectionPage() {
         };
       });
 
-      await renaissanceService.saveAxeSelection(userId, selections);
+      await renaissanceService.saveAxeSelection(uid, selections);
 
       // Rediriger vers le premier axe
       router.push(`/renaissance/${selectedAxes[0]}`);
 
     } catch (error) {
-      console.error('Erreur lors de la validation:', error);
+      const message = error instanceof Error ? error.message : JSON.stringify(error);
+      console.error('Erreur lors de la validation:', message);
     } finally {
       setSaving(false);
     }
