@@ -44,10 +44,10 @@ interface EncrageState {
   sessionStartTime: number;
 }
 
-export default function EncragePage({ params }: { params: { axeId: string } | Promise<{ axeId: string }> }) {
+export default function EncragePage({ params }: { params: Promise<{ axeId: string }> }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { axeId } = use(params) as { axeId: string };
+  const { axeId } = use(params);
   const level = searchParams.get('level') as 'level1' | 'level2' | 'level3' || 'level1';
 
   const [state, setState] = useState<EncrageState>({

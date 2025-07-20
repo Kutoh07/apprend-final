@@ -11,9 +11,9 @@ import { quickCompare } from '@/lib/utils/stringComparison';
 import type { GameSession, PhraseAttempt, RenaissancePhrase } from '@/lib/types/renaissance';
 
 
-export default function DiscoveryPage({ params }: { params: { axeId: string } | Promise<{ axeId: string }> }) {
+export default function DiscoveryPage({ params }: { params: Promise<{ axeId: string }> }) {
   const router = useRouter();
-  const { axeId } = use(params) as { axeId: string };
+  const { axeId } = use(params);
   const [gameSession, setGameSession] = useState<GameSession | null>(null);
   const [currentPhrase, setCurrentPhrase] = useState<string>('');
   const [userInput, setUserInput] = useState<string>('');
@@ -69,7 +69,7 @@ export default function DiscoveryPage({ params }: { params: { axeId: string } | 
         id: p.id,
         content: p.content,
         phraseNumber: p.phrase_number,
-  axeId: params.axeId
+        axeId: axeId
       })));
 
       setLoading(false);
