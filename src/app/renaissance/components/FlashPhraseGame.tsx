@@ -13,6 +13,9 @@ export interface PhraseAttempt {
   flashDuration: number;
   differences?: TextDifference[];
   responseTime?: number;
+  expectedText?: string; // ✅ AJOUT: Phrase attendue
+  similarityScore?: number;
+  shownAt?: string;
 }
 
 export interface TextDifference {
@@ -55,7 +58,7 @@ export default function FlashPhraseGame({
   const [flashTimeLeft, setFlashTimeLeft] = useState(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Démarrer le countdown avant d'afficher la phrase
+  // ✅ CORRECTION: Reset countdown quand isShowingPhrase change
   useEffect(() => {
     if (isShowingPhrase) {
       setShowCountdown(true);
@@ -66,6 +69,7 @@ export default function FlashPhraseGame({
           if (prev <= 1) {
             clearInterval(countdownInterval);
             setShowCountdown(false);
+            // ✅ Démarrer directement le flash sans changer isShowingPhrase
             startFlashTimer();
             return 0;
           }
@@ -74,8 +78,12 @@ export default function FlashPhraseGame({
       }, 1000);
 
       return () => clearInterval(countdownInterval);
+    } else {
+      // ✅ Reset l'état quand on quitte le mode flash
+      setShowCountdown(false);
+      setFlashTimeLeft(0);
     }
-  }, [isShowingPhrase]);
+  }, [isShowingPhrase, flashDuration]);
 
   const startFlashTimer = () => {
     setFlashTimeLeft(flashDuration);
@@ -106,7 +114,7 @@ export default function FlashPhraseGame({
   // Gestion des raccourcis clavier
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Enter' && e.ctrlKey && !isShowingPhrase && !showCountdown) {
+      if (e.key === 'Enter' && e.ctrlKey && !isShowingPhrase && !showCountdown && !showResult) {
         e.preventDefault();
         onSubmit();
       }
@@ -114,7 +122,7 @@ export default function FlashPhraseGame({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isShowingPhrase, showCountdown, onSubmit]);
+  }, [isShowingPhrase, showCountdown, showResult, onSubmit]);
 
   const getStageLabel = () => {
     switch (stage) {
@@ -133,7 +141,7 @@ export default function FlashPhraseGame({
     return `${flashDuration}ms`;
   };
 
-  // Rendu du countdown
+  // ✅ AFFICHAGE: Countdown
   if (showCountdown) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center p-4">
@@ -156,8 +164,8 @@ export default function FlashPhraseGame({
     );
   }
 
-  // Rendu de l'affichage de la phrase
-  if (isShowingPhrase) {
+  // ✅ AFFICHAGE: Flash de la phrase (quand isShowingPhrase=true ET countdown fini)
+  if (isShowingPhrase && !showCountdown && flashTimeLeft > 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center p-4">
         <div className="max-w-4xl w-full text-center">
@@ -197,7 +205,7 @@ export default function FlashPhraseGame({
     );
   }
 
-  // Rendu des résultats
+  // ✅ AFFICHAGE: Résultats
   if (showResult && result) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center p-4">
@@ -222,13 +230,15 @@ export default function FlashPhraseGame({
 
             {/* Comparaison des réponses */}
             <div className="space-y-6 mb-8">
-              {/* Phrase attendue */}
+              {/* Phrase attendue - SEULEMENT après validation */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Phrase attendue :
                 </label>
                 <div className="p-4 bg-green-50 border-2 border-green-200 rounded-xl">
-                  <div className="text-lg text-green-800 font-medium">{phrase}</div>
+                  <div className="text-lg text-green-800 font-medium">
+                    {result.expectedText || phrase}
+                  </div>
                 </div>
               </div>
 
@@ -312,7 +322,7 @@ export default function FlashPhraseGame({
     );
   }
 
-  // Rendu de la saisie utilisateur
+  // ✅ AFFICHAGE: Zone de saisie utilisateur (par défaut)
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center p-4">
       <div className="max-w-3xl w-full">

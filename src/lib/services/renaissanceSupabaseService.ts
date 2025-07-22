@@ -8,10 +8,39 @@ import type {
   UserAxeSelection,
   UserRenaissanceProgress,
   PhraseAttempt,
-  RenaissanceStats,
-  AxeStats
-} from './renaissanceService';
+  RenaissanceStats
+} from '../types/renaissance';
 import { axeSupabaseService } from './axeSupabaseService';
+
+// Types additionnels pour ce service
+interface AxeStats {
+  axeId: string;
+  axeName: string;
+  overallProgress: number;
+  discoveryCompleted: boolean;
+  discoveryAccuracy: number;
+  level1Completed: boolean;
+  level1Accuracy: number;
+  level2Completed: boolean;
+  level2Accuracy: number;
+  level3Completed: boolean;
+  level3Accuracy: number;
+  totalAttempts: number;
+  averageAccuracy: number;
+  timeSpent: number;
+  difficulty?: 'beginner' | 'intermediate' | 'advanced' | 'expert';
+  commonMistakes?: string[];
+}
+
+interface ExtendedRenaissanceStats extends RenaissanceStats {
+  discoveryCompleted: number;
+  encrageCompleted: number;
+  bestAccuracy: number;
+  worstAccuracy: number;
+  axesStats: AxeStats[];
+  masteryLevel: 'débutant' | 'intermédiaire' | 'avancé' | 'expert';
+  improvementTips: string[];
+}
 
 /**
  * Service Supabase dédié à Renaissance
@@ -394,7 +423,7 @@ export class RenaissanceSupabaseService {
   /**
    * Récupère les statistiques détaillées d'un utilisateur
    */
-  async getUserStats(userId: string): Promise<RenaissanceStats> {
+  async getUserStats(userId: string): Promise<ExtendedRenaissanceStats> {
     try {
       // Récupérer les sélections
       const selections = await this.getUserSelections(userId);
@@ -468,7 +497,7 @@ export class RenaissanceSupabaseService {
       const totalTimeSpent = axesStats.reduce((sum, axe) => sum + axe.timeSpent, 0);
       const totalAttempts = axesStats.reduce((sum, axe) => sum + axe.totalAttempts, 0);
 
-      const stats: RenaissanceStats = {
+      const stats: ExtendedRenaissanceStats = {
         totalAxesSelected,
         axesCompleted,
         totalProgress: totalAxesSelected > 0 ? Math.round((axesCompleted / totalAxesSelected) * 100) : 0,
@@ -516,6 +545,40 @@ export class RenaissanceSupabaseService {
       throw error;
     }
   }
+
+  /**
+   * Réinitialiser le progrès d'un axe
+   */
+  async resetAxeProgress(userId: string, axeId: string): Promise<void> {
+    try {
+      // Supprimer les progrès de cet axe
+      await supabase
+        .from('user_renaissance_progress')
+        .delete()
+        .eq('user_id', userId)
+        .eq('axe_id', axeId);
+
+      // Réinitialiser les flags de la sélection
+      await supabase
+        .from('user_renaissance_selection')
+        .update({
+          is_started: false,
+          is_completed: false,
+          started_at: null,
+          completed_at: null
+        })
+        .eq('user_id', userId)
+        .eq('axe_id', axeId);
+
+      console.log('✅ Progrès de l\'axe réinitialisé:', { userId, axeId });
+
+    } catch (error) {
+      console.error('Erreur resetAxeProgress:', error);
+      throw error;
+    }
+  }
+
+  // ===== MÉTHODES UTILITAIRES =====
 
   /**
    * Calculer la difficulté d'un axe basée sur les métriques
@@ -595,34 +658,6 @@ export class RenaissanceSupabaseService {
     }
 
     return tips;
-  }
-  async resetAxeProgress(userId: string, axeId: string): Promise<void> {
-    try {
-      // Supprimer les progrès de cet axe
-      await supabase
-        .from('user_renaissance_progress')
-        .delete()
-        .eq('user_id', userId)
-        .eq('axe_id', axeId);
-
-      // Réinitialiser les flags de la sélection
-      await supabase
-        .from('user_renaissance_selection')
-        .update({
-          is_started: false,
-          is_completed: false,
-          started_at: null,
-          completed_at: null
-        })
-        .eq('user_id', userId)
-        .eq('axe_id', axeId);
-
-      console.log('✅ Progrès de l\'axe réinitialisé:', { userId, axeId });
-
-    } catch (error) {
-      console.error('Erreur resetAxeProgress:', error);
-      throw error;
-    }
   }
 }
 

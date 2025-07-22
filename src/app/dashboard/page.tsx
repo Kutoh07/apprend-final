@@ -76,7 +76,7 @@ const createLevels = (averageProgress: number, programmeData: ProgrammeData | nu
     name: "RENAISSANCE",
     color: "from-indigo-400 to-indigo-600", 
     icon: Award,
-    progress: renaissanceStats ? renaissanceStats.totalProgress : 0, // Utiliser les vraies stats
+    progress: renaissanceStats ? renaissanceStats.totalProgress : 0,
     description: "Transformation profonde",
     isClickable: programmeData ? programmeData.overallProgress >= 100 : false
   },
@@ -132,10 +132,10 @@ export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [programmeData, setProgrammeData] = useState<ProgrammeData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [renaissanceStats, setRenaissanceStats] = useState<RenaissanceStats | null>(null);
 
   // Handlers
   const handleNavigate = (path: string) => router.push(path);
-  const [renaissanceStats, setRenaissanceStats] = useState<RenaissanceStats | null>(null);
   
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -146,9 +146,14 @@ export default function DashboardPage() {
   };
 
   const loadRenaissanceStats = async (userId: string) => {
-  // Plus rapide grâce au cache !
-  const stats = await renaissanceService.getUserStats(userId);
-  setRenaissanceStats(stats); // Direct, pas de calcul
+    try {
+      const stats = await renaissanceService.getUserStats(userId);
+      setRenaissanceStats(stats);
+    } catch (error) {
+      console.error('Erreur lors du chargement des statistiques Renaissance:', error);
+      // En cas d'erreur, on laisse renaissanceStats à null (progression = 0)
+    }
+  };
 
   const handleLevelClick = (level: Level) => {
     const routeMap: Record<string, string> = {
@@ -329,5 +334,4 @@ export default function DashboardPage() {
       )}
     </div>
   );
-}
 }

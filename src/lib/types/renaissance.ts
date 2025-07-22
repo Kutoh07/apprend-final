@@ -51,19 +51,25 @@ export interface PhraseAttempt {
   timestamp: Date;
   flashDuration: number;
   differences?: TextDifference[];
+  responseTime?: number;
+  expectedText?: string;
+  similarityScore?: number;
+  shownAt?: string; // ✅ CHANGÉ: Date → string (pour compatibilité ISO string)
 }
 
 export interface TextDifference {
   type: 'correct' | 'incorrect' | 'missing' | 'extra';
   text: string;
   position: number;
+  expectedText?: string; // ✅ AJOUTÉ: Pour les mots incorrects
 }
 
+// ✅ NOUVEAU: Interface pour les sessions de jeu avec table dédiée
 export interface GameSession {
   id: string;
   userId: string;
   axeId: string;
-  stage: string;
+  stage: 'discovery' | 'level1' | 'level2' | 'level3';
   flashDurationMs: number;
   phrasesOrder: number[];
   currentPhraseIndex: number;
@@ -75,34 +81,27 @@ export interface GameSession {
   startedAt: Date;
   completedAt?: Date;
   lastActivityAt: Date;
+  deviceInfo?: any;
+  browserInfo?: any;
 }
 
+// ✅ NOUVEAU: Interface pour les tentatives détaillées
 export interface DetailedAttempt extends PhraseAttempt {
   sessionId: string;
   phraseId: string;
   phraseNumber: number;
   similarityScore?: number;
   errorAnalysis?: any;
-  shownAt: Date;
+  shownAt: string; // ✅ COHÉRENT: string au lieu de Date
+  submittedAt: Date;
 }
 
 export interface RenaissanceStats {
-  // Types existants + nouveaux
   totalAxesSelected: number;
   axesCompleted: number;
   totalProgress: number;
   averageAccuracy: number;
-  totalTimeSpent: number; // ✅ CHANGÉ: était en heures
-  lastActivityDate?: Date; // ✅ NOUVEAU
-}
-
-
-/*export interface RenaissanceStats {
-  totalAxesSelected: number;
-  axesCompleted: number;
-  totalProgress: number; // 0-100%
-  discoveryCompleted: number;
-  encrageCompleted: number;
-  averageAccuracy: number;
   totalTimeSpent: number; // en minutes
-}*/
+  totalAttempts: number;
+  lastActivityDate?: Date;
+}

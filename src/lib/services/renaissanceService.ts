@@ -4,26 +4,17 @@
 import { supabase } from '../supabase';
 import { programmeSupabaseService } from '../programmeSupabaseService';
 import { renaissanceSupabaseService } from './renaissanceSupabaseService';
+import type { 
+  GameSession, 
+  PhraseAttempt, 
+  DetailedAttempt,
+  RenaissanceAxe, 
+  RenaissancePhrase,
+  RenaissanceStats,
+  TextDifference
+} from '../types/renaissance';
 
-// Types temporaires (à déplacer vers src/lib/types/renaissance.ts plus tard)
-export interface RenaissanceAxe {
-  id: string;
-  name: string;
-  icon: string;
-  description: string;
-  sortOrder: number;
-  isActive: boolean;
-  isCustomizable: boolean;
-  phrases?: RenaissancePhrase[];
-}
-
-export interface RenaissancePhrase {
-  id: string;
-  axeId: string;
-  phraseNumber: number;
-  content: string;
-}
-
+// ===== TYPES POUR COMPATIBILITÉ =====
 export interface UserAxeSelection {
   id: string;
   userId: string;
@@ -36,65 +27,6 @@ export interface UserAxeSelection {
   selectedAt: Date;
   startedAt?: Date;
   completedAt?: Date;
-}
-
-export interface UserRenaissanceProgress {
-  id: string;
-  userId: string;
-  axeId: string;
-  stage: 'discovery' | 'level1' | 'level2' | 'level3';
-  currentPhrase: number;
-  attempts: Record<number, PhraseAttempt[]>;
-  stageCompleted: boolean;
-  stageCompletedAt?: Date;
-  lastAttemptAt: Date;
-}
-
-export interface PhraseAttempt {
-  userInput: string;
-  isCorrect: boolean;
-  timestamp: Date;
-  flashDuration: number;
-  differences?: TextDifference[];
-  responseTime?: number;
-  expectedText?: string;
-  similarityScore?: number;
-  shownAt?: Date;
-}
-
-export interface TextDifference {
-  type: 'correct' | 'incorrect' | 'missing' | 'extra';
-  text: string;
-  position: number;
-}
-
-export interface GameSession {
-  id?: string;
-  axeId: string;
-  stage: string;
-  phrases: RenaissancePhrase[];
-  currentPhraseIndex: number;
-  flashDuration: number;
-  attempts: PhraseAttempt[];
-  isCompleted: boolean;
-  accuracy: number;
-  shuffledOrder: number[];
-}
-
-export interface RenaissanceStats {
-  totalAxesSelected: number;
-  axesCompleted: number;
-  totalProgress: number; // 0-100%
-  discoveryCompleted: number;
-  encrageCompleted: number;
-  averageAccuracy: number;
-  totalTimeSpent: number; // en minutes
-  totalAttempts: number;
-  bestAccuracy: number;
-  worstAccuracy: number;
-  axesStats: AxeStats[];
-  masteryLevel: 'débutant' | 'intermédiaire' | 'avancé' | 'expert';
-  improvementTips: string[];
 }
 
 export interface AxeStats {
@@ -114,144 +46,256 @@ export interface AxeStats {
   timeSpent: number;
 }
 
-// Service Supabase dédié à Renaissance
+export interface GameResults {
+  totalPhrases: number;
+  correctAnswers: number;
+  accuracy: number;
+  attempts: PhraseAttempt[];
+  timeSpent: number;
+  averageResponseTime: number;
+  stage: string;
+  level?: string;
+}
+
+// Re-export des types principaux
+export type { GameSession, PhraseAttempt, TextDifference, RenaissanceAxe, RenaissancePhrase };
+
+// ===== SERVICE PRINCIPAL =====
 export class RenaissanceService {
   private supabaseService = renaissanceSupabaseService;
 
+  // ========== GESTION DES SESSIONS DE JEU ==========
+  
   /**
-   * Vérifier l'éligibilité à Renaissance
+   * Créer une nouvelle session de jeu
    */
-  async checkEligibility(userId: string): Promise<boolean> {
-    try {
-      const programmeData = await programmeSupabaseService.getProgramme(userId);
-      return programmeData?.overallProgress === 100;
-    } catch (error) {
-      console.error('Erreur checkEligibility:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Récupérer tous les axes disponibles
-   */
-  async getAvailableAxes(): Promise<RenaissanceAxe[]> {
-    return this.supabaseService.getAxes();
-  }
-
-  /**
-   * Récupérer un axe avec ses phrases
-   */
-  async getAxeWithPhrases(axeId: string): Promise<RenaissanceAxe | null> {
-    return this.supabaseService.getAxeWithPhrases(axeId);
-  }
-
-  /**
-   * Sauvegarder la sélection d'axes
-   */
-  async saveAxeSelection(
+  async createGameSession(
     userId: string, 
-    selectedAxes: Array<{
-      axeId: string;
-      customName?: string;
-      customPhrases?: string[];
-    }>
-  ): Promise<void> {
-    return this.supabaseService.saveUserSelection(userId, selectedAxes);
-  }
-
-  /**
-   * Démarrer un axe
-   */
-  async startAxe(userId: string, axeId: string): Promise<void> {
-    return this.supabaseService.markAxeAsStarted(userId, axeId);
-  }
-
-  /**
-   * Créer une session de jeu flash
-   */
-  async createFlashSession(
-    userId: string,
-    axeId: string,
-    stage: string
-  ): Promise<GameSession | null> {
-    try {
-      // Récupérer l'axe avec ses phrases
-      const axe = await this.supabaseService.getAxeWithPhrases(axeId);
-      if (!axe || !axe.phrases) {
-        return null;
-      }
-
-      // Déterminer la durée du flash selon l'étape
-      let flashDuration = 500; // Par défaut discovery
-      switch (stage) {
-        case 'level1':
-          flashDuration = 3000;
-          break;
-        case 'level2':
-          flashDuration = 1500;
-          break;
-        case 'level3':
-          flashDuration = 500;
-          break;
-      }
-
-      // Mélanger l'ordre des phrases
-      const shuffledOrder = this.shuffleArray([...Array(axe.phrases.length).keys()]);
-
-      const gameSession: GameSession = {
-        axeId,
+    axeId: string, 
+    stage: 'discovery' | 'level1' | 'level2' | 'level3',
+    phrasesCount: number
+  ): Promise<GameSession> {
+    // Désactiver les sessions actives existantes
+    await this.deactivateExistingSessions(userId, axeId, stage);
+    
+    const flashDurationMs = this.getFlashDuration(stage);
+    const phrasesOrder = this.shuffleArray(Array.from({ length: phrasesCount }, (_, i) => i));
+    const deviceInfo = this.getDeviceInfo();
+    const browserInfo = this.getBrowserInfo();
+    
+    const { data, error } = await supabase
+      .from('renaissance_game_sessions')
+      .insert({
+        user_id: userId,
+        axe_id: axeId,
         stage,
-        phrases: axe.phrases,
-        currentPhraseIndex: 0,
-        flashDuration,
-        attempts: [],
-        isCompleted: false,
-        accuracy: 0,
-        shuffledOrder
-      };
+        flash_duration_ms: flashDurationMs,
+        phrases_order: phrasesOrder,
+        current_phrase_index: 0,
+        is_active: true,
+        is_completed: false,
+        correct_count: 0,
+        total_attempts: 0,
+        session_accuracy: 0,
+        device_info: deviceInfo,
+        browser_info: browserInfo
+      })
+      .select()
+      .single();
 
-      return gameSession;
-
-    } catch (error) {
-      console.error('Erreur createFlashSession:', error);
-      return null;
-    }
+    if (error) throw error;
+    return this.mapSessionFromDB(data);
   }
 
   /**
-   * Démarrer une session de jeu (nouvelle approche avec tables dédiées)
+   * Récupérer une session active
    */
-  async startGameSession(
-    userId: string,
-    axeId: string,
-    stage: string,
-    flashDuration: number,
-    phrasesOrder: number[]
-  ): Promise<any> {
+  async getActiveSession(userId: string, axeId: string, stage?: string): Promise<GameSession | null> {
+    let query = supabase
+      .from('renaissance_game_sessions')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('axe_id', axeId)
+      .eq('is_active', true);
+
+    if (stage) {
+      query = query.eq('stage', stage);
+    }
+
+    const { data, error } = await query
+      .order('started_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return null;
+    
+    return this.mapSessionFromDB(data);
+  }
+
+  /**
+   * Mettre à jour la progression d'une session
+   */
+  async updateSessionProgress(
+    sessionId: string, 
+    phraseIndex: number, 
+    isCorrect: boolean
+  ): Promise<void> {
     try {
-      const { data, error } = await supabase
+      // Récupérer les stats actuelles
+      const { data: session, error: fetchError } = await supabase
         .from('renaissance_game_sessions')
-        .insert({
-          user_id: userId,
-          axe_id: axeId,
-          stage,
-          flash_duration_ms: flashDuration,
-          phrases_order: phrasesOrder,
-          is_active: true
-        })
-        .select()
+        .select('correct_count, total_attempts')
+        .eq('id', sessionId)
         .single();
 
-      if (error) throw error;
-      return data;
+      if (fetchError) {
+        console.error('❌ Erreur fetch session stats:', fetchError);
+        return;
+      }
+
+      const newTotalAttempts = session.total_attempts + 1;
+      const newCorrectCount = session.correct_count + (isCorrect ? 1 : 0);
+      const newAccuracy = (newCorrectCount / newTotalAttempts) * 100;
+
+      // Mettre à jour
+      const { error: updateError } = await supabase
+        .from('renaissance_game_sessions')
+        .update({
+          current_phrase_index: phraseIndex,
+          total_attempts: newTotalAttempts,
+          correct_count: newCorrectCount,
+          session_accuracy: newAccuracy,
+          last_activity_at: new Date().toISOString()
+        })
+        .eq('id', sessionId);
+
+      if (updateError) {
+        console.error('❌ Erreur update session progress:', updateError);
+      } else {
+        console.log('✅ Session progress mis à jour:', { 
+          sessionId, 
+          totalAttempts: newTotalAttempts, 
+          correctCount: newCorrectCount, 
+          accuracy: newAccuracy 
+        });
+      }
+
     } catch (error) {
-      console.error('Erreur startGameSession:', error);
+      console.error('❌ Erreur updateSessionProgress:', error);
+    }
+  }
+
+  /**
+   * Compléter une session avec gestion des statistiques
+   */
+  async completeSession(sessionId: string): Promise<void> {
+    try {
+      console.log('🏁 Début completeSession:', sessionId);
+      
+      // 1. Marquer la session comme complétée
+      const { error: updateError } = await supabase
+        .from('renaissance_game_sessions')
+        .update({
+          is_completed: true,
+          is_active: false,
+          completed_at: new Date().toISOString()
+        })
+        .eq('id', sessionId);
+
+      if (updateError) {
+        console.error('❌ Erreur mise à jour session:', updateError);
+        throw updateError;
+      }
+      
+      console.log('✅ Session marquée comme complétée');
+
+      // 2. Récupérer les détails de la session pour mise à jour des stats
+      const { data: session, error: fetchError } = await supabase
+        .from('renaissance_game_sessions')
+        .select('user_id, axe_id, stage, session_accuracy, total_attempts')
+        .eq('id', sessionId)
+        .single();
+
+      if (fetchError) {
+        console.error('❌ Erreur récupération session:', fetchError);
+        return; // Ne pas bloquer si erreur de récupération
+      }
+
+      console.log('📊 Session data:', session);
+
+      // 3. Mettre à jour les statistiques utilisateur (legacy) - avec protection
+      try {
+        await this.updateUserProgressLegacy(
+          session.user_id, 
+          session.axe_id, 
+          session.stage, 
+          session.session_accuracy >= 100
+        );
+      } catch (legacyError) {
+        console.error('⚠️ Erreur legacy update (non bloquant):', legacyError);
+        // Ne pas throw - ce n'est pas critique
+      }
+
+    } catch (error) {
+      console.error('❌ Erreur dans completeSession:', error);
       throw error;
     }
   }
 
   /**
-   * Enregistrer une tentative (nouvelle approche)
+   * Mise à jour legacy des progrès utilisateur
+   */
+  async updateUserProgressLegacy(
+    userId: string, 
+    axeId: string, 
+    stage: string, 
+    isCompleted: boolean
+  ): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('user_renaissance_progress')
+        .upsert({
+          user_id: userId,
+          axe_id: axeId,
+          stage: stage,
+          stage_completed: isCompleted,
+          stage_completed_at: isCompleted ? new Date().toISOString() : null,
+          last_attempt_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,axe_id,stage'
+        });
+
+      if (error) {
+        console.error('❌ Erreur update progress legacy:', error);
+      } else {
+        console.log('✅ Progress legacy mis à jour:', { userId, axeId, stage, isCompleted });
+      }
+    } catch (error) {
+      console.error('❌ Erreur updateUserProgressLegacy:', error);
+    }
+  }
+
+  /**
+   * Désactiver les sessions existantes
+   */
+  async deactivateExistingSessions(userId: string, axeId: string, stage: string): Promise<void> {
+    const { error } = await supabase
+      .from('renaissance_game_sessions')
+      .update({ 
+        is_active: false,
+        last_activity_at: new Date().toISOString()
+      })
+      .eq('user_id', userId)
+      .eq('axe_id', axeId)
+      .eq('stage', stage)
+      .eq('is_active', true);
+
+    if (error) throw error;
+  }
+
+  /**
+   * Enregistrer une tentative avec mise à jour des stats
    */
   async recordAttempt(
     sessionId: string,
@@ -260,7 +304,7 @@ export class RenaissanceService {
     attempt: PhraseAttempt
   ): Promise<void> {
     try {
-      // Insérer dans la table dédiée
+      // 1. Insérer la tentative détaillée
       const { error: attemptError } = await supabase
         .from('renaissance_attempts')
         .insert({
@@ -277,120 +321,73 @@ export class RenaissanceService {
           submitted_at: new Date().toISOString()
         });
 
-      if (attemptError) throw attemptError;
-
-      // Mettre à jour la session
-      await this.updateSessionStats(sessionId, attempt.isCorrect);
-    } catch (error) {
-      console.error('Erreur recordAttempt:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Mise à jour des stats de session
-   */
-  private async updateSessionStats(sessionId: string, isCorrect: boolean): Promise<void> {
-    try {
-      // Utiliser une fonction RPC si elle existe, sinon fallback sur update direct
-      const { error } = await supabase.rpc('update_session_stats', {
-        p_session_id: sessionId,
-        p_is_correct: isCorrect
-      });
-      
-      if (error) {
-        // Fallback: mise à jour manuelle
-        console.warn('RPC update_session_stats non disponible, utilisation du fallback');
-        await this.updateSessionStatsManual(sessionId, isCorrect);
+      if (attemptError) {
+        console.warn('⚠️ Table renaissance_attempts non disponible:', attemptError.message);
       }
+
+      // 2. Mettre à jour les stats de session
+      await this.updateSessionProgress(sessionId, phraseNumber - 1, attempt.isCorrect);
+      
+      console.log('✅ Tentative enregistrée:', { sessionId, phraseNumber, isCorrect: attempt.isCorrect });
+
     } catch (error) {
-      console.error('Erreur updateSessionStats:', error);
-      // Fallback silencieux
-      await this.updateSessionStatsManual(sessionId, isCorrect);
+      console.error('❌ Erreur recordAttempt:', error);
+      // Ne pas throw pour éviter de bloquer l'utilisateur
     }
   }
 
+  // ========== GESTION DES AXES ET PHRASES ==========
+  
+  async getAvailableAxes(): Promise<RenaissanceAxe[]> {
+    return this.supabaseService.getAxes();
+  }
+
+  async getAxeWithPhrases(axeId: string): Promise<RenaissanceAxe | null> {
+    return this.supabaseService.getAxeWithPhrases(axeId);
+  }
+
+  async saveAxeSelection(
+    userId: string, 
+    selectedAxes: Array<{
+      axeId: string;
+      customName?: string;
+      customPhrases?: string[];
+    }>
+  ): Promise<void> {
+    return this.supabaseService.saveUserSelection(userId, selectedAxes);
+  }
+
+  // ========== MÉTHODES DE COMPATIBILITÉ ==========
+  
   /**
-   * Fallback pour mise à jour manuelle des stats
+   * Démarrer une session (pour compatibilité avec ancien code)
    */
-  private async updateSessionStatsManual(sessionId: string, isCorrect: boolean): Promise<void> {
-    try {
-      // Récupérer les stats actuelles
-      const { data: session, error: fetchError } = await supabase
-        .from('renaissance_game_sessions')
-        .select('correct_count, total_attempts')
-        .eq('id', sessionId)
-        .single();
+  async startGameSession(
+    userId: string,
+    axeId: string,
+    stage: string,
+    flashDuration: number,
+    phrasesOrder: number[]
+  ): Promise<any> {
+    const { data, error } = await supabase
+      .from('renaissance_game_sessions')
+      .insert({
+        user_id: userId,
+        axe_id: axeId,
+        stage,
+        flash_duration_ms: flashDuration,
+        phrases_order: phrasesOrder,
+        is_active: true
+      })
+      .select()
+      .single();
 
-      if (fetchError) throw fetchError;
-
-      const newTotalAttempts = (session.total_attempts || 0) + 1;
-      const newCorrectCount = (session.correct_count || 0) + (isCorrect ? 1 : 0);
-      const newAccuracy = (newCorrectCount / newTotalAttempts) * 100;
-
-      // Mettre à jour
-      const { error: updateError } = await supabase
-        .from('renaissance_game_sessions')
-        .update({
-          total_attempts: newTotalAttempts,
-          correct_count: newCorrectCount,
-          session_accuracy: newAccuracy,
-          last_activity_at: new Date().toISOString()
-        })
-        .eq('id', sessionId);
-
-      if (updateError) throw updateError;
-    } catch (error) {
-      console.error('Erreur updateSessionStatsManual:', error);
-    }
+    if (error) throw error;
+    return data;
   }
 
   /**
-   * Récupérer une session active
-   */
-  async getActiveSession(userId: string, axeId: string): Promise<any> {
-    try {
-      const { data, error } = await supabase
-        .from('renaissance_game_sessions')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('axe_id', axeId)
-        .eq('is_active', true)
-        .order('started_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (error && error.code !== 'PGRST116') throw error;
-      return data;
-    } catch (error) {
-      console.error('Erreur getActiveSession:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Compléter une session
-   */
-  async completeSession(sessionId: string): Promise<void> {
-    try {
-      const { error } = await supabase
-        .from('renaissance_game_sessions')
-        .update({
-          is_completed: true,
-          is_active: false,
-          completed_at: new Date().toISOString()
-        })
-        .eq('id', sessionId);
-
-      if (error) throw error;
-    } catch (error) {
-      console.error('Erreur completeSession:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Enregistrer une tentative (ancienne méthode - garde pour compatibilité)
+   * Enregistrer tentative (méthode legacy)
    */
   async recordAttemptLegacy(
     userId: string,
@@ -403,85 +400,14 @@ export class RenaissanceService {
   }
 
   /**
-   * Marquer un niveau comme complété
+   * Marquer un stage complété
    */
-  async completeStage(
-    userId: string,
-    axeId: string,
-    stage: string
-  ): Promise<void> {
+  async completeStage(userId: string, axeId: string, stage: string): Promise<void> {
     return this.supabaseService.markStageCompleted(userId, axeId, stage);
   }
 
-  /**
-   * Obtenir les statistiques utilisateur (nouvelle approche avec cache)
-   */
-  async getUserStats(userId: string): Promise<RenaissanceStats> {
-    try {
-      const { data, error } = await supabase
-        .from('renaissance_user_stats_cache')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-
-      if (error && error.code !== 'PGRST116') throw error;
-      
-      // Si pas de cache, utiliser l'ancienne méthode
-      if (!data) {
-        return this.getUserStatsLegacy(userId);
-      }
-
-      return {
-        totalAxesSelected: data.total_axes_selected || 0,
-        axesCompleted: data.total_axes_completed || 0,
-        totalProgress: data.overall_progress_percentage || 0,
-        discoveryCompleted: 0, // À calculer si nécessaire
-        encrageCompleted: 0, // À calculer si nécessaire
-        averageAccuracy: data.global_accuracy || 0,
-        totalTimeSpent: data.total_time_spent_minutes || 0,
-        totalAttempts: data.total_attempts || 0,
-        bestAccuracy: 0, // À calculer si nécessaire
-        worstAccuracy: 0, // À calculer si nécessaire
-        axesStats: [], // À implémenter si nécessaire
-        masteryLevel: 'débutant',
-        improvementTips: []
-      };
-    } catch (error) {
-      console.error('Erreur getUserStats:', error);
-      return this.getUserStatsLegacy(userId);
-    }
-  }
-
-  /**
-   * Obtenir les statistiques utilisateur (ancienne méthode - fallback)
-   */
-  async getUserStatsLegacy(userId: string): Promise<RenaissanceStats> {
-    try {
-      return await this.supabaseService.getUserStats(userId);
-    } catch (error) {
-      console.error('Erreur getUserStatsLegacy:', error);
-      // Retourner des stats vides par défaut
-      return {
-        totalAxesSelected: 0,
-        axesCompleted: 0,
-        totalProgress: 0,
-        discoveryCompleted: 0,
-        encrageCompleted: 0,
-        averageAccuracy: 0,
-        totalTimeSpent: 0,
-        totalAttempts: 0,
-        bestAccuracy: 0,
-        worstAccuracy: 0,
-        axesStats: [],
-        masteryLevel: 'débutant',
-        improvementTips: []
-      };
-    }
-  }
-
-  /**
-   * Vérifier une réponse utilisateur
-   */
+  // ========== VÉRIFICATION ET ANALYSE ==========
+  
   checkAnswer(userInput: string, targetPhrase: string): PhraseAttempt {
     const normalizedInput = this.normalizeText(userInput);
     const normalizedTarget = this.normalizeText(targetPhrase);
@@ -493,29 +419,92 @@ export class RenaissanceService {
       userInput,
       isCorrect,
       timestamp: new Date(),
-      flashDuration: 500, // À adapter selon le contexte
+      flashDuration: 500,
       differences,
       expectedText: targetPhrase
     };
   }
 
-  /**
-   * Normaliser le texte pour la comparaison
-   */
+  // ========== STATISTIQUES ==========
+  
+  async getUserStats(userId: string): Promise<RenaissanceStats> {
+    try {
+      // Essayer le cache d'abord
+      const { data, error } = await supabase
+        .from('renaissance_user_stats_cache')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+      
+      if (data) {
+        return {
+          totalAxesSelected: data.total_axes_selected || 0,
+          axesCompleted: data.total_axes_completed || 0,
+          totalProgress: data.overall_progress_percentage || 0,
+          averageAccuracy: data.global_accuracy || 0,
+          totalTimeSpent: data.total_time_spent_minutes || 0,
+          totalAttempts: data.total_attempts || 0,
+          lastActivityDate: data.last_activity_at ? new Date(data.last_activity_at) : undefined
+        };
+      }
+
+      // Fallback vers l'ancienne méthode
+      return await this.getUserStatsLegacy(userId);
+    } catch (error) {
+      console.error('Erreur getUserStats:', error);
+      return await this.getUserStatsLegacy(userId);
+    }
+  }
+
+  async getUserStatsLegacy(userId: string): Promise<RenaissanceStats> {
+    try {
+      return await this.supabaseService.getUserStats(userId);
+    } catch (error) {
+      console.error('Erreur getUserStatsLegacy:', error);
+      return {
+        totalAxesSelected: 0,
+        axesCompleted: 0,
+        totalProgress: 0,
+        averageAccuracy: 0,
+        totalTimeSpent: 0,
+        totalAttempts: 0
+      };
+    }
+  }
+
+  // ========== MÉTHODES UTILITAIRES ==========
+  
+  private getFlashDuration(stage: string): number {
+    switch (stage) {
+      case 'discovery': return 500;
+      case 'level1': return 3000;
+      case 'level2': return 1500;
+      case 'level3': return 500;
+      default: return 500;
+    }
+  }
+
+  private shuffleArray(array: number[]): number[] {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  }
+
   private normalizeText(text: string): string {
     return text
       .toLowerCase()
       .trim()
-      .replace(/\s+/g, ' ') // Remplacer les espaces multiples par un seul
-      .replace(/[''`]/g, "'") // Normaliser les apostrophes
-      .replace(/[""]/g, '"'); // Normaliser les guillemets
+      .replace(/\s+/g, ' ')
+      .replace(/[''`]/g, "'")
+      .replace(/[""]/g, '"');
   }
 
-  /**
-   * Trouver les différences entre deux textes
-   */
   private findDifferences(input: string, target: string): TextDifference[] {
-    // Implémentation simple - à améliorer plus tard
     const differences: TextDifference[] = [];
     
     if (input.length !== target.length) {
@@ -531,16 +520,53 @@ export class RenaissanceService {
     return differences;
   }
 
-  /**
-   * Mélanger un tableau
-   */
-  private shuffleArray(array: number[]): number[] {
-    const shuffled = [...array];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    return shuffled;
+  private getDeviceInfo(): any {
+    if (typeof window === 'undefined') return null;
+    
+    return {
+      userAgent: navigator.userAgent,
+      platform: navigator.platform,
+      language: navigator.language,
+      screenWidth: screen.width,
+      screenHeight: screen.height,
+      viewport: {
+        width: window.innerWidth,
+        height: window.innerHeight
+      }
+    };
+  }
+
+  private getBrowserInfo(): any {
+    if (typeof window === 'undefined') return null;
+    
+    return {
+      cookieEnabled: navigator.cookieEnabled,
+      onLine: navigator.onLine,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  private mapSessionFromDB(data: any): GameSession {
+    return {
+      id: data.id,
+      userId: data.user_id,
+      axeId: data.axe_id,
+      stage: data.stage,
+      flashDurationMs: data.flash_duration_ms,
+      phrasesOrder: data.phrases_order,
+      currentPhraseIndex: data.current_phrase_index,
+      isActive: data.is_active,
+      isCompleted: data.is_completed,
+      correctCount: data.correct_count,
+      totalAttempts: data.total_attempts,
+      sessionAccuracy: data.session_accuracy,
+      startedAt: new Date(data.started_at),
+      completedAt: data.completed_at ? new Date(data.completed_at) : undefined,
+      lastActivityAt: new Date(data.last_activity_at),
+      deviceInfo: data.device_info,
+      browserInfo: data.browser_info
+    };
   }
 }
 

@@ -11,9 +11,10 @@ import FlashPhraseGame from '../../components/FlashPhraseGame';
 import ResultDisplay, { GameResults } from '../../components/ResultDisplay';
 import { LevelNavigation, CurrentLevelDisplay } from '../../components/LevelIndicator';
 import type {  
+  GameSession,
   PhraseAttempt, 
   RenaissancePhrase 
-} from '../../../../lib/services/renaissanceService';
+} from '../../../../lib/types/renaissance';
 
 // Types pour la page d'encrage
 interface EncrageLevel {
@@ -31,16 +32,14 @@ interface EncrageLevel {
 interface EncrageState {
   currentLevel: EncrageLevel | null;
   phrases: RenaissancePhrase[];
-  currentPhraseIndex: number;
+  gameSession: GameSession | null;
   userInput: string;
   isShowingPhrase: boolean;
   showResult: boolean;
-  gameSession: any;
   attempts: PhraseAttempt[];
   lastResult: PhraseAttempt | null;
   showFinalResults: boolean;
   finalResults: GameResults | null;
-  shuffledOrder: number[];
   sessionStartTime: number;
 }
 
@@ -53,16 +52,14 @@ export default function EncragePage({ params }: { params: Promise<{ axeId: strin
   const [state, setState] = useState<EncrageState>({
     currentLevel: null,
     phrases: [],
-    currentPhraseIndex: 0,
+    gameSession: null,
     userInput: '',
     isShowingPhrase: false,
     showResult: false,
-    gameSession: null,
     attempts: [],
     lastResult: null,
     showFinalResults: false,
     finalResults: null,
-    shuffledOrder: [],
     sessionStartTime: Date.now()
   });
 
@@ -70,6 +67,7 @@ export default function EncragePage({ params }: { params: Promise<{ axeId: strin
   const [userId, setUserId] = useState<string | null>(null);
   const [axeName, setAxeName] = useState('');
   const [allLevels, setAllLevels] = useState<EncrageLevel[]>([]);
+  const [hasStartedPlaying, setHasStartedPlaying] = useState(false);
 
   // Configuration des niveaux d'encrage
   const ENCRAGE_LEVELS: Record<string, Omit<EncrageLevel, 'isUnlocked' | 'isCompleted' | 'progress'>> = {
@@ -189,14 +187,23 @@ export default function EncragePage({ params }: { params: Promise<{ axeId: strin
         return;
       }
 
-      // Mélanger l'ordre des phrases pour ce niveau
-      const shuffledOrder = shufflePhrases(phrasesToUse.length);
+      // Chercher une session active ou en créer une nouvelle
+      let gameSession = await renaissanceService.getActiveSession(session.user.id, axeId, level);
+      
+      if (!gameSession) {
+        gameSession = await renaissanceService.createGameSession(
+          session.user.id,
+          axeId,
+          level,
+          phrasesToUse.length
+        );
+      }
 
       setState(prev => ({
         ...prev,
         currentLevel,
         phrases: phrasesToUse,
-        shuffledOrder,
+        gameSession,
         sessionStartTime: Date.now()
       }));
 
@@ -208,47 +215,64 @@ export default function EncragePage({ params }: { params: Promise<{ axeId: strin
     }
   };
 
-  const shufflePhrases = (length: number): number[] => {
-    const indices = Array.from({ length }, (_, i) => i);
-    for (let i = indices.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [indices[i], indices[j]] = [indices[j], indices[i]];
-    }
-    return indices;
+  // ✅ CORRECTION: Fonction séparée pour démarrer le flash
+  const startFlashSequence = () => {
+    if (!state.currentLevel) return;
+    
+    setHasStartedPlaying(true); // ✅ Marquer qu'on a commencé à jouer
+    setState(prev => ({
+      ...prev,
+      userInput: '',
+      isShowingPhrase: true,
+      showResult: false,
+      lastResult: null
+    }));
+    
+    // ✅ CORRECTION: Timer pour masquer la phrase seulement
+    const totalDuration = 3000 + state.currentLevel.flashDuration;
+    setTimeout(() => {
+      setState(prev => ({ 
+        ...prev, 
+        isShowingPhrase: false 
+      }));
+    }, totalDuration);
   };
 
-  const startGame = async () => {
-    if (!state.currentLevel || !userId) return;
-    
-    // Créer session d'encrage
-    const session = await renaissanceService.startGameSession(
-      userId,
-      axeId,
-      state.currentLevel.stage,
-      state.currentLevel.flashDuration,
-      state.shuffledOrder
-    );
+  const startGame = () => {
+    if (!state.currentLevel || !state.gameSession) return;
     
     setState(prev => ({
       ...prev,
-      gameSession: session,
-      sessionStartTime: Date.now(),
-      attempts: []
+      attempts: [],
+      sessionStartTime: Date.now()
     }));
+    
+    startFlashSequence();
   };
 
   const handlePhraseSubmit = async () => {
+    if (!state.gameSession) return;
+
     if (state.showResult) {
       // Passer à la phrase suivante
-      if (state.currentPhraseIndex < state.phrases.length - 1) {
+      const nextIndex = state.gameSession.currentPhraseIndex + 1;
+      
+      if (nextIndex < state.phrases.length) {
         setState(prev => ({
           ...prev,
-          currentPhraseIndex: prev.currentPhraseIndex + 1,
           userInput: '',
           showResult: false,
           lastResult: null,
-          isShowingPhrase: true
+          gameSession: prev.gameSession ? {
+            ...prev.gameSession,
+            currentPhraseIndex: nextIndex
+          } : null
         }));
+        
+        // ✅ CORRECTION: Redémarrer la séquence flash après une petite pause
+        setTimeout(() => {
+          startFlashSequence();
+        }, 500);
       } else {
         // Toutes les phrases ont été tentées, vérifier les résultats
         await checkLevelCompletion();
@@ -258,25 +282,40 @@ export default function EncragePage({ params }: { params: Promise<{ axeId: strin
 
     if (!state.userInput.trim() || !state.currentLevel) return;
     
-    const currentPhrase = state.phrases[state.shuffledOrder[state.currentPhraseIndex]];
+    // Obtenir la phrase actuelle selon l'ordre de la session
+    const phraseIndex = state.gameSession.phrasesOrder[state.gameSession.currentPhraseIndex];
+    const currentPhrase = state.phrases[phraseIndex];
     
     // Vérifier la réponse
     const attempt = renaissanceService.checkAnswer(state.userInput.trim(), currentPhrase.content);
+    attempt.flashDuration = state.gameSession.flashDurationMs;
+    attempt.expectedText = currentPhrase.content; // ✅ AJOUT: Phrase attendue
     
     const newAttempts = [...state.attempts, attempt];
     
-    // Enregistrer la tentative en base
-    if (userId) {
-      try {
-        await renaissanceService.recordAttemptLegacy(
-          userId,
-          axeId,
-          state.currentLevel.stage,
-          state.currentPhraseIndex + 1,
-          attempt
-        );
-      } catch (error) {
-        console.error('Erreur sauvegarde tentative:', error);
+    // Enregistrer la tentative avec la nouvelle méthode
+    try {
+      await renaissanceService.recordAttempt(
+        state.gameSession.id,
+        currentPhrase.id,
+        state.gameSession.currentPhraseIndex + 1,
+        attempt
+      );
+    } catch (error) {
+      console.error('Erreur sauvegarde tentative:', error);
+      // Fallback vers l'ancienne méthode
+      if (userId) {
+        try {
+          await renaissanceService.recordAttemptLegacy(
+            userId,
+            axeId,
+            state.currentLevel.stage,
+            state.gameSession.currentPhraseIndex + 1,
+            attempt
+          );
+        } catch (fallbackError) {
+          console.error('Erreur sauvegarde fallback:', fallbackError);
+        }
       }
     }
 
@@ -289,7 +328,7 @@ export default function EncragePage({ params }: { params: Promise<{ axeId: strin
   };
 
   const checkLevelCompletion = async () => {
-    if (!state.currentLevel || !userId) return;
+    if (!state.currentLevel || !userId || !state.gameSession) return;
 
     const correctAnswers = state.attempts.filter(a => a.isCorrect).length;
     const accuracy = Math.round((correctAnswers / state.attempts.length) * 100);
@@ -310,8 +349,11 @@ export default function EncragePage({ params }: { params: Promise<{ axeId: strin
     };
 
     if (levelCompleted) {
-      // Marquer le niveau comme complété
+      // Marquer la session comme complétée
       try {
+        await renaissanceService.completeSession(state.gameSession.id);
+        
+        // Marquer le stage comme complété (legacy)
         await renaissanceService.completeStage(userId, axeId, state.currentLevel.stage);
         console.log('✅ Niveau complété:', state.currentLevel.stage);
       } catch (error) {
@@ -343,34 +385,41 @@ export default function EncragePage({ params }: { params: Promise<{ axeId: strin
       }
     } else {
       // Recommencer le niveau actuel
+      restartLevel();
+    }
+  };
+
+  const restartLevel = async () => {
+    if (!userId || !state.currentLevel) return;
+
+    try {
+      // Créer une nouvelle session pour recommencer
+      const newSession = await renaissanceService.createGameSession(
+        userId,
+        axeId,
+        state.currentLevel.stage,
+        state.phrases.length
+      );
+
       setState(prev => ({
         ...prev,
+        gameSession: newSession,
         showFinalResults: false,
         finalResults: null,
-        currentPhraseIndex: 0,
         userInput: '',
         isShowingPhrase: false,
         showResult: false,
         attempts: [],
         lastResult: null,
-        shuffledOrder: shufflePhrases(prev.phrases.length)
+        sessionStartTime: Date.now()
       }));
+    } catch (error) {
+      console.error('Erreur lors du restart:', error);
     }
   };
 
   const handleResultsRestart = () => {
-    setState(prev => ({
-      ...prev,
-      showFinalResults: false,
-      finalResults: null,
-      currentPhraseIndex: 0,
-      userInput: '',
-      isShowingPhrase: false,
-      showResult: false,
-      attempts: [],
-      lastResult: null,
-      shuffledOrder: shufflePhrases(prev.phrases.length)
-    }));
+    restartLevel();
   };
 
   const handleBackToAxe = () => {
@@ -462,20 +511,27 @@ export default function EncragePage({ params }: { params: Promise<{ axeId: strin
     );
   }
 
-  // Jeu en cours
-  if (state.isShowingPhrase || state.showResult || state.currentPhraseIndex < state.phrases.length) {
-    const currentPhrase = state.phrases[state.shuffledOrder[state.currentPhraseIndex]];
+  // ✅ CORRECTION: Jeu en cours - condition plus précise
+  const shouldShowGame = hasStartedPlaying && 
+                         (state.isShowingPhrase || state.showResult || 
+                          (state.gameSession && state.gameSession.currentPhraseIndex < state.phrases.length));
+
+  if (shouldShowGame) {
+    if (!state.gameSession) return null;
+    
+    const phraseIndex = state.gameSession.phrasesOrder[state.gameSession.currentPhraseIndex];
+    const currentPhrase = state.phrases[phraseIndex];
     
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-100 to-pink-100">
         <FlashPhraseGame
           phrase={currentPhrase.content}
-          phraseNumber={state.currentPhraseIndex + 1}
+          phraseNumber={state.gameSession.currentPhraseIndex + 1}
           totalPhrases={state.phrases.length}
           userInput={state.userInput}
           onInputChange={(value) => setState(prev => ({ ...prev, userInput: value }))}
           onSubmit={handlePhraseSubmit}
-          flashDuration={state.currentLevel.flashDuration}
+          flashDuration={state.gameSession.flashDurationMs}
           showResult={state.showResult}
           isShowingPhrase={state.isShowingPhrase}
           result={state.lastResult ?? undefined}
