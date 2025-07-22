@@ -1,4 +1,4 @@
-// Étape découverte (flash 0.5s)
+// Étape découverte (flash 0.5s) - ERREURS CORRIGÉES
 // src/app/renaissance/[axeId]/discovery/page.tsx
 
 'use client';
@@ -37,6 +37,9 @@ export default function DiscoveryPage({ params }: { params: Promise<{ axeId: str
 
   const [userId, setUserId] = useState<string | null>(null);
   const [axeName, setAxeName] = useState('');
+  // ✅ AJOUT: Variables pour tracker le temps
+  const [phraseStartTime, setPhraseStartTime] = useState<number>(0);
+  // ✅ CORRECTION: Ajout de la variable manquante hasStartedPlaying
   const [hasStartedPlaying, setHasStartedPlaying] = useState(false);
 
   useEffect(() => {
@@ -120,6 +123,7 @@ export default function DiscoveryPage({ params }: { params: Promise<{ axeId: str
   // ✅ CORRECTION: Fonction séparée pour démarrer le flash
   const startFlashSequence = () => {
     setHasStartedPlaying(true); // ✅ Marquer qu'on a commencé à jouer
+    setPhraseStartTime(Date.now()); // ✅ Commencer le timer pour cette phrase
     setState(prev => ({
       ...prev,
       userInput: '',
@@ -180,13 +184,16 @@ export default function DiscoveryPage({ params }: { params: Promise<{ axeId: str
     
     // Vérifier la réponse
     const comparison = quickCompare(state.userInput.trim(), currentPhrase.content);
+    const responseTime = phraseStartTime > 0 ? Date.now() - phraseStartTime : 0;
+    
     const attempt: PhraseAttempt = {
       userInput: state.userInput.trim(),
       isCorrect: comparison.isCorrect,
       timestamp: new Date(),
       flashDuration: state.gameSession.flashDurationMs,
       differences: comparison.differences,
-      expectedText: currentPhrase.content // ✅ AJOUT: Phrase attendue pour affichage
+      expectedText: currentPhrase.content, // ✅ AJOUT: Phrase attendue pour affichage
+      responseTime // ✅ AJOUT: Temps de réponse calculé
     };
 
     try {

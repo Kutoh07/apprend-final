@@ -1,4 +1,4 @@
-// Étape encrage (niveaux 1-3)
+// Étape encrage (niveaux 1-3) - ERREURS TYPESCRIPT CORRIGÉES
 // src/app/renaissance/[axeId]/encrage/page.tsx
 
 'use client';
@@ -68,6 +68,7 @@ export default function EncragePage({ params }: { params: Promise<{ axeId: strin
   const [axeName, setAxeName] = useState('');
   const [allLevels, setAllLevels] = useState<EncrageLevel[]>([]);
   const [hasStartedPlaying, setHasStartedPlaying] = useState(false);
+  const [phraseStartTime, setPhraseStartTime] = useState<number>(0); // ✅ AJOUT: Timer pour temps de réponse
 
   // Configuration des niveaux d'encrage
   const ENCRAGE_LEVELS: Record<string, Omit<EncrageLevel, 'isUnlocked' | 'isCompleted' | 'progress'>> = {
@@ -220,6 +221,7 @@ export default function EncragePage({ params }: { params: Promise<{ axeId: strin
     if (!state.currentLevel) return;
     
     setHasStartedPlaying(true); // ✅ Marquer qu'on a commencé à jouer
+    setPhraseStartTime(Date.now()); // ✅ AJOUT: Commencer le timer pour cette phrase
     setState(prev => ({
       ...prev,
       userInput: '',
@@ -241,10 +243,11 @@ export default function EncragePage({ params }: { params: Promise<{ axeId: strin
   const startGame = () => {
     if (!state.currentLevel || !state.gameSession) return;
     
+    const startTime = Date.now(); // ✅ CORRECTION: Capturer le temps de début
     setState(prev => ({
       ...prev,
       attempts: [],
-      sessionStartTime: Date.now()
+      sessionStartTime: startTime
     }));
     
     startFlashSequence();
@@ -258,21 +261,24 @@ export default function EncragePage({ params }: { params: Promise<{ axeId: strin
       const nextIndex = state.gameSession.currentPhraseIndex + 1;
       
       if (nextIndex < state.phrases.length) {
+        // ✅ CORRECTION: Mise à jour immédiate de l'état avec le nouvel index
+        const updatedGameSession = {
+          ...state.gameSession,
+          currentPhraseIndex: nextIndex
+        };
+        
         setState(prev => ({
           ...prev,
           userInput: '',
           showResult: false,
           lastResult: null,
-          gameSession: prev.gameSession ? {
-            ...prev.gameSession,
-            currentPhraseIndex: nextIndex
-          } : null
+          gameSession: updatedGameSession
         }));
         
-        // ✅ CORRECTION: Redémarrer la séquence flash après une petite pause
+        // ✅ CORRECTION: Délai plus court pour éviter le flash de l'écran de saisie
         setTimeout(() => {
           startFlashSequence();
-        }, 500);
+        }, 100);
       } else {
         // Toutes les phrases ont été tentées, vérifier les résultats
         await checkLevelCompletion();
@@ -286,10 +292,14 @@ export default function EncragePage({ params }: { params: Promise<{ axeId: strin
     const phraseIndex = state.gameSession.phrasesOrder[state.gameSession.currentPhraseIndex];
     const currentPhrase = state.phrases[phraseIndex];
     
+    // ✅ CORRECTION: Calcul du temps de réponse correct
+    const responseTime = phraseStartTime > 0 ? Date.now() - phraseStartTime : 0;
+    
     // Vérifier la réponse
     const attempt = renaissanceService.checkAnswer(state.userInput.trim(), currentPhrase.content);
     attempt.flashDuration = state.gameSession.flashDurationMs;
     attempt.expectedText = currentPhrase.content; // ✅ AJOUT: Phrase attendue
+    attempt.responseTime = responseTime; // ✅ AJOUT: Temps de réponse calculé
     
     const newAttempts = [...state.attempts, attempt];
     
@@ -327,6 +337,35 @@ export default function EncragePage({ params }: { params: Promise<{ axeId: strin
     }));
   };
 
+  // ✅ CORRECTION: Fonctions utilitaires pour les temps avec gestion des undefined
+  const formatTime = (milliseconds: number): string => {
+    if (milliseconds < 1000) return `${Math.round(milliseconds)}ms`;
+    if (milliseconds < 60000) return `${(milliseconds / 1000).toFixed(1)}s`;
+    const minutes = Math.floor(milliseconds / 60000);
+    const seconds = Math.round((milliseconds % 60000) / 1000);
+    return `${minutes}m ${seconds}s`;
+  };
+
+  const getTimeStats = () => {
+    const validTimes = state.attempts
+      .map(a => a.responseTime)
+      .filter((t): t is number => t !== undefined && t > 0 && t < 300000);
+    
+    if (validTimes.length === 0) {
+      return {
+        fastest: 0,
+        slowest: 0,
+        average: 0
+      };
+    }
+    
+    return {
+      fastest: Math.min(...validTimes),
+      slowest: Math.max(...validTimes),
+      average: validTimes.reduce((sum, time) => sum + time, 0) / validTimes.length
+    };
+  };
+
   const checkLevelCompletion = async () => {
     if (!state.currentLevel || !userId || !state.gameSession) return;
 
@@ -337,13 +376,22 @@ export default function EncragePage({ params }: { params: Promise<{ axeId: strin
     // Pour l'encrage, il faut 100% de réussite pour passer au niveau suivant
     const levelCompleted = correctAnswers === state.phrases.length;
 
+    // ✅ CORRECTION: Calcul des temps de réponse correct avec gestion des undefined
+    const validResponseTimes = state.attempts
+      .map(a => a.responseTime)
+      .filter((t): t is number => t !== undefined && t > 0 && t < 300000); // Filtrer les temps valides (< 5 minutes)
+    
+    const averageResponseTime = validResponseTimes.length > 0 
+      ? validResponseTimes.reduce((sum, time) => sum + time, 0) / validResponseTimes.length 
+      : 0;
+
     const results: GameResults = {
       totalPhrases: state.phrases.length,
       correctAnswers,
       accuracy,
       attempts: state.attempts,
       timeSpent: totalTime,
-      averageResponseTime: state.attempts.reduce((sum, a) => sum + (a.responseTime || 0), 0) / state.attempts.length,
+      averageResponseTime,
       stage: state.currentLevel.stage,
       level: state.currentLevel.name
     };
@@ -413,6 +461,7 @@ export default function EncragePage({ params }: { params: Promise<{ axeId: strin
         lastResult: null,
         sessionStartTime: Date.now()
       }));
+      setHasStartedPlaying(false); // ✅ AJOUT: Reset pour permettre de recommencer
     } catch (error) {
       console.error('Erreur lors du restart:', error);
     }

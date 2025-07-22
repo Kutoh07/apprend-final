@@ -1,4 +1,4 @@
-// Écran d'accueil d'un axe
+// Écran d'accueil d'un axe - VERSION CORRIGÉE
 // src/app/renaissance/[axeId]/page.tsx
 
 'use client';
@@ -213,6 +213,72 @@ export default function AxePage({ params }: { params: Promise<{ axeId: string }>
     loadAxeData();
   }, [axeId]);
 
+  // ✅ NOUVELLE FONCTION: Calculer les progrès depuis les sessions
+  const calculateProgressFromSessions = (sessions: any[], legacyProgress: any[]) => {
+    const stages = ['discovery', 'level1', 'level2', 'level3'];
+    
+    return stages.map(stage => {
+      // Vérifier dans les sessions modernes
+      const completedSession = sessions.find(s => 
+        s.stage === stage && s.is_completed === true
+      );
+      
+      // Vérifier dans legacy
+      const legacyStage = legacyProgress.find(p => 
+        p.stage === stage && p.stage_completed === true
+      );
+      
+      const isCompleted = !!(completedSession || legacyStage);
+      const completedAt = completedSession?.completed_at || legacyStage?.stage_completed_at;
+      
+      return {
+        stage: stage as 'discovery' | 'level1' | 'level2' | 'level3',
+        stageCompleted: isCompleted,
+        stageCompletedAt: completedAt ? new Date(completedAt) : undefined
+      };
+    });
+  };
+
+  // ✅ NOUVELLE FONCTION: Calculer les stats depuis les sessions
+  const calculateStatsFromSessions = (sessions: any[], legacyProgress: any[]) => {
+    const completedSessions = sessions.filter(s => s.is_completed);
+    
+    // Calculer progression globale (Découverte 30% + Encrage 70%)
+    let overallProgress = 0;
+    const discoveryCompleted = completedSessions.some(s => s.stage === 'discovery') || 
+                             legacyProgress.some(p => p.stage === 'discovery' && p.stage_completed);
+    const level1Completed = completedSessions.some(s => s.stage === 'level1') || 
+                           legacyProgress.some(p => p.stage === 'level1' && p.stage_completed);
+    const level2Completed = completedSessions.some(s => s.stage === 'level2') || 
+                           legacyProgress.some(p => p.stage === 'level2' && p.stage_completed);
+    const level3Completed = completedSessions.some(s => s.stage === 'level3') || 
+                           legacyProgress.some(p => p.stage === 'level3' && p.stage_completed);
+
+    if (discoveryCompleted) overallProgress += 30;
+    if (level1Completed) overallProgress += 23.33;
+    if (level2Completed) overallProgress += 23.33;
+    if (level3Completed) overallProgress += 23.34;
+
+    const stats: AxeStats = {
+      discoveryCompleted,
+      discoveryAccuracy: 85, // À calculer depuis les tentatives
+      level1Completed,
+      level1Accuracy: 88,
+      level2Completed,
+      level2Accuracy: 92,
+      level3Completed,
+      level3Accuracy: 95,
+      overallProgress: Math.round(overallProgress),
+      totalAttempts: sessions.reduce((sum, s) => sum + (s.total_attempts || 0), 0),
+      averageAccuracy: completedSessions.length > 0 
+        ? completedSessions.reduce((sum, s) => sum + (s.session_accuracy || 0), 0) / completedSessions.length
+        : 0,
+      timeSpent: 45 // À calculer
+    };
+
+    setStats(stats);
+  };
+
   const loadAxeData = async () => {
     try {
       // Vérifier l'authentification
@@ -225,15 +291,29 @@ export default function AxePage({ params }: { params: Promise<{ axeId: string }>
 
       setUserId(session.user.id);
 
-      // Charger les informations de l'axe
-      const { data: axeData, error: axeError } = await supabase
-        .from('renaissance_axes')
-        .select('*')
-        .eq('id', axeId)
-        .single();
+      // ✅ CORRECTION: Charger l'axe avec gestion d'erreur améliorée
+      try {
+        const { data: axeData, error: axeError } = await supabase
+          .from('renaissance_axes')
+          .select('*')
+          .eq('id', axeId)
+          .single();
 
-      if (axeError || !axeData) {
-        console.error('Erreur axe:', axeError);
+        if (axeError) {
+          console.error('Erreur chargement axe:', axeError);
+          router.push('/renaissance');
+          return;
+        }
+
+        setAxe({
+          id: axeData.id,
+          name: axeData.name,
+          icon: axeData.icon,
+          description: axeData.description,
+          isCustomizable: axeData.is_customizable
+        });
+      } catch (axeLoadError) {
+        console.error('Erreur lors du chargement de l\'axe:', axeLoadError);
         router.push('/renaissance');
         return;
       }
@@ -247,31 +327,10 @@ export default function AxePage({ params }: { params: Promise<{ axeId: string }>
         .single();
 
       if (selectionError || !selectionData) {
-        const msg = selectionError?.message || 'non sélectionné';
-        console.error('Axe non sélectionné:', msg);
+        console.error('Axe non sélectionné:', selectionError?.message || 'non sélectionné');
         router.push('/renaissance/selection');
         return;
       }
-
-      // Charger les progrès
-      const { data: progressData, error: progressError } = await supabase
-        .from('user_renaissance_progress')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .eq('axe_id', axeId);
-
-      if (progressError) {
-        console.error('Erreur progrès:', progressError);
-      }
-
-      // Construire les données
-      setAxe({
-        id: axeData.id,
-        name: axeData.name,
-        icon: axeData.icon,
-        description: axeData.description,
-        isCustomizable: axeData.is_customizable
-      });
 
       setUserSelection({
         id: selectionData.id,
@@ -287,16 +346,39 @@ export default function AxePage({ params }: { params: Promise<{ axeId: string }>
         completedAt: selectionData.completed_at ? new Date(selectionData.completed_at) : undefined
       });
 
-      if (progressData) {
-        setProgress(progressData.map(p => ({
-          stage: p.stage,
-          stageCompleted: p.stage_completed,
-          stageCompletedAt: p.stage_completed_at ? new Date(p.stage_completed_at) : undefined
-        })));
+      // ✅ CORRECTION: Charger les progrès depuis les SESSIONS ET legacy
+      const [sessionsResult, progressResult] = await Promise.allSettled([
+        // Sessions modernes
+        supabase
+          .from('renaissance_game_sessions')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .eq('axe_id', axeId),
+        // Progress legacy
+        supabase
+          .from('user_renaissance_progress')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .eq('axe_id', axeId)
+      ]);
+
+      let sessionsData = [];
+      let progressData = [];
+
+      if (sessionsResult.status === 'fulfilled') {
+        sessionsData = sessionsResult.value.data || [];
+      }
+      
+      if (progressResult.status === 'fulfilled') {
+        progressData = progressResult.value.data || [];
       }
 
+      // ✅ CORRECTION: Calculer les progrès basés sur les sessions ET legacy
+      const calculatedProgress = calculateProgressFromSessions(sessionsData, progressData);
+      setProgress(calculatedProgress);
+
       // Calculer les statistiques
-      calculateStats(progressData || []);
+      calculateStatsFromSessions(sessionsData, progressData);
 
     } catch (error) {
       console.error('Erreur lors du chargement:', error);
@@ -304,37 +386,6 @@ export default function AxePage({ params }: { params: Promise<{ axeId: string }>
     } finally {
       setLoading(false);
     }
-  };
-
-  const calculateStats = (progressData: any[]) => {
-    const discoveryProgress = progressData.find(p => p.stage === 'discovery');
-    const level1Progress = progressData.find(p => p.stage === 'level1');
-    const level2Progress = progressData.find(p => p.stage === 'level2');
-    const level3Progress = progressData.find(p => p.stage === 'level3');
-
-    // Calculer progression globale (Découverte 30% + Encrage 70%)
-    let overallProgress = 0;
-    if (discoveryProgress?.stage_completed) overallProgress += 30;
-    if (level1Progress?.stage_completed) overallProgress += 23.33; // 70/3
-    if (level2Progress?.stage_completed) overallProgress += 23.33;
-    if (level3Progress?.stage_completed) overallProgress += 23.34;
-
-    const stats: AxeStats = {
-      discoveryCompleted: discoveryProgress?.stage_completed || false,
-      discoveryAccuracy: 85, // À calculer depuis les tentatives
-      level1Completed: level1Progress?.stage_completed || false,
-      level1Accuracy: 88,
-      level2Completed: level2Progress?.stage_completed || false,
-      level2Accuracy: 92,
-      level3Completed: level3Progress?.stage_completed || false,
-      level3Accuracy: 95,
-      overallProgress: Math.round(overallProgress),
-      totalAttempts: 0, // À calculer
-      averageAccuracy: 90,
-      timeSpent: 45 // À calculer
-    };
-
-    setStats(stats);
   };
 
   const handleStartAxe = async () => {
@@ -439,7 +490,7 @@ export default function AxePage({ params }: { params: Promise<{ axeId: string }>
                   <div className="text-2xl font-bold text-gray-800">{stats.overallProgress}%</div>
                   <div className="text-sm text-gray-600">Progression totale</div>
                   <div className="text-sm text-purple-600 mt-1">
-                    Précision moyenne: {stats.averageAccuracy}%
+                    Précision moyenne: {Math.round(stats.averageAccuracy)}%
                   </div>
                 </div>
               </div>
@@ -545,7 +596,7 @@ export default function AxePage({ params }: { params: Promise<{ axeId: string }>
                 <div className="text-sm text-gray-600">Tentatives totales</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{stats.averageAccuracy}%</div>
+                <div className="text-2xl font-bold text-green-600">{Math.round(stats.averageAccuracy)}%</div>
                 <div className="text-sm text-gray-600">Précision moyenne</div>
               </div>
               <div className="text-center">
