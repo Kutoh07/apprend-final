@@ -185,7 +185,7 @@ export default function AuthChoicePage() {
             </button>
           </div>
 
-          {/* Bouton de diagnostic temporaire - À SUPPRIMER EN PRODUCTION */}
+          {/* Bouton de diagnostic temporaire - À SUPPRIMER EN PRODUCTION 
           {process.env.NODE_ENV === 'development' && (
             <div className="mt-4 pt-4 border-t border-gray-200">
               <button
@@ -195,7 +195,7 @@ export default function AuthChoicePage() {
                 🔍 Diagnostic OAuth (DEV ONLY)
               </button>
             </div>
-          )}
+          )}*/}
         </div>
 
         {/* Note explicative */}
