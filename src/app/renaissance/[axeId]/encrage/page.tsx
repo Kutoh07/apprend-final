@@ -4,12 +4,13 @@
 'use client';
 
 import React, { useState, useEffect, use } from 'react';
+import AttemptHistory from '../components/AttemptHistory';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '../../../../lib/supabase';
 import { renaissanceService } from '../../../../lib/services/renaissanceService';
 import FlashPhraseGame from '../../components/FlashPhraseGame';
 import ResultDisplay, { GameResults } from '../../components/ResultDisplay';
-import { LevelNavigation, CurrentLevelDisplay } from '../../components/LevelIndicator';
+import { LevelNavigation } from '../../components/LevelIndicator';
 import type {  
   GameSession,
   PhraseAttempt, 
@@ -62,6 +63,9 @@ export default function EncragePage({ params }: { params: Promise<{ axeId: strin
     finalResults: null,
     sessionStartTime: Date.now()
   });
+
+  // State pour l'affichage conditionnel de l'historique des tentatives
+  const [showAttemptHistory, setShowAttemptHistory] = useState(true);
 
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
@@ -545,7 +549,31 @@ export default function EncragePage({ params }: { params: Promise<{ axeId: strin
   };
 
   const handleLevelChange = (newLevel: string) => {
-    router.push(`/renaissance/${axeId}/encrage?level=${newLevel}`);
+    if (newLevel === 'discovery') {
+      // Pour discovery, aller vers la page discovery
+      router.push(`/renaissance/${axeId}/discovery`);
+    } else {
+      // Pour les niveaux d'encrage
+      router.push(`/renaissance/${axeId}/encrage?level=${newLevel}`);
+    }
+  };
+
+  const handlePreviousLevel = () => {
+    const levels = ['level1', 'level2', 'level3'];
+    const currentIndex = levels.indexOf(level);
+    if (currentIndex > 0) {
+      const previousLevel = levels[currentIndex - 1];
+      handleLevelChange(previousLevel);
+    }
+  };
+
+  const handleNextLevel = () => {
+    const levels = ['level1', 'level2', 'level3'];
+    const currentIndex = levels.indexOf(level);
+    if (currentIndex < levels.length - 1) {
+      const nextLevel = levels[currentIndex + 1];
+      handleLevelChange(nextLevel);
+    }
   };
 
   if (loading) {
@@ -587,18 +615,10 @@ export default function EncragePage({ params }: { params: Promise<{ axeId: strin
           <div className="mb-6">
             <LevelNavigation
               currentStage={state.currentLevel.stage}
-              levels={allLevels.map(level => ({
-                stage: level.stage,
-                name: level.name,
-                description: level.description,
-                flashDuration: level.flashDuration,
-                icon: level.icon,
-                color: level.color,
-                progress: level.progress,
-                isCompleted: level.isCompleted,
-                isActive: level.stage === state.currentLevel?.stage,
-                isLocked: !level.isUnlocked
-              }))}
+              axeId={axeId}
+              userId={userId || undefined}
+              onPrevious={handlePreviousLevel}
+              onNext={handleNextLevel}
               onLevelSelect={handleLevelChange}
             />
           </div>
@@ -667,40 +687,16 @@ export default function EncragePage({ params }: { params: Promise<{ axeId: strin
         <div className="mb-8">
           <LevelNavigation
             currentStage={state.currentLevel.stage}
-            levels={allLevels.map(level => ({
-              stage: level.stage,
-              name: level.name,
-              description: level.description,
-              flashDuration: level.flashDuration,
-              icon: level.icon,
-              color: level.color,
-              progress: level.progress,
-              isCompleted: level.isCompleted,
-              isActive: level.stage === state.currentLevel?.stage,
-              isLocked: !level.isUnlocked
-            }))}
+            axeId={axeId}
+            userId={userId || undefined}
+            onPrevious={handlePreviousLevel}
+            onNext={handleNextLevel}
             onLevelSelect={handleLevelChange}
           />
         </div>
 
         {/* Écran d'accueil du niveau */}
         <div className="max-w-2xl mx-auto text-center">
-          <CurrentLevelDisplay
-            level={{
-              stage: state.currentLevel.stage,
-              name: state.currentLevel.name,
-              description: state.currentLevel.description,
-              flashDuration: state.currentLevel.flashDuration,
-              icon: state.currentLevel.icon,
-              color: state.currentLevel.color,
-              progress: state.currentLevel.progress,
-              isCompleted: state.currentLevel.isCompleted,
-              isActive: true,
-              isLocked: false
-            }}
-            totalPhrases={state.phrases.length}
-            className="mb-8"
-          />
 
           {/* Informations sur l'encrage */}
           <div className="bg-white rounded-2xl shadow-lg p-8 mb-8">
@@ -745,23 +741,51 @@ export default function EncragePage({ params }: { params: Promise<{ axeId: strin
               </div>
             </div>
 
-            <button
-              onClick={startGame}
-              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-4 px-8 rounded-xl text-xl transition-colors shadow-lg hover:shadow-xl transform hover:scale-105"
-            >
-              🚀 Commencer {state.currentLevel.name}
-            </button>
+            <div className="flex flex-row gap-4 justify-center items-center mt-4">
+              <button
+                onClick={startGame}
+                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-4 px-8 rounded-xl text-xs transition-colors shadow-lg hover:shadow-xl transform hover:scale-105"
+              >
+                🚀 Commencer {state.currentLevel.name}
+              </button>
+              <button
+                onClick={handleBackToAxe}
+                className="px-6 py-4 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors text-xs font-bold flex items-center gap-2"
+              >
+                <span>🏃‍♂️</span>
+                <span>Retour à l'axe</span>
+              </button>
+            </div>
           </div>
 
+          {/* ✅ MODIFICATION: Historique des tentatives - Affiché seulement s'il y a des tentatives */}
+          {showAttemptHistory && (
+            <div className="mt-8">
+              <AttemptHistory 
+                axeId={axeId} 
+                userId={userId} 
+                level={state.currentLevel.stage}
+                onDataLoaded={(hasAttempts) => {
+                  if (!hasAttempts) {
+                    setShowAttemptHistory(false);
+                  }
+                }}
+              />
+            </div>
+          )}
+
           {/* Navigation */}
-          <div className="flex gap-4 justify-center">
-            <button
-              onClick={handleBackToAxe}
-              className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors"
-            >
-              ← Retour à l'axe
-            </button>
-          </div>
+          {/* (Bouton déplacé à côté de Commencer niveau) */}
+
+          {/* ✅ AJOUT: Historique toujours présent mais conditionnel
+          <div className="mt-8">
+            <AttemptHistory 
+              axeId={axeId} 
+              userId={userId} 
+              level={state.currentLevel.stage}
+              onDataLoaded={(hasAttempts) => setShowAttemptHistory(hasAttempts)}
+            />
+          </div>  */}
         </div>
       </div>
     </div>

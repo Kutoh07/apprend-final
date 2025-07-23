@@ -458,15 +458,14 @@ export default function AxePage({ params }: { params: Promise<{ axeId: string }>
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-100 to-pink-100">
       <div className="max-w-6xl mx-auto p-4">
-        {/* Header */}
+        {/* Header + Progression globale + Première visite côte à côte */}
         <div className="text-center mb-8">
           <button
             onClick={() => router.push('/renaissance')}
             className="mb-4 text-purple-600 hover:text-purple-800 font-medium"
           >
-            ← Retour à Renaissance
+            🏃‍♂️ Retour à Renaissance
           </button>
-          
           <div className="text-6xl mb-4">{axe.icon}</div>
           <h1 className="text-4xl font-bold mb-4">
             <span className="bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent">
@@ -476,14 +475,17 @@ export default function AxePage({ params }: { params: Promise<{ axeId: string }>
           <p className="text-lg text-gray-700 mb-6 max-w-2xl mx-auto">
             {axe.description}
           </p>
+        </div>
 
-          {/* Progression globale */}
+        {/* Progression globale + Première visite côte à côte */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+          {/* Colonne 1 : Progression globale */}
           {stats && (
-            <div className="bg-white rounded-2xl shadow-lg p-6 mb-8 inline-block">
+            <div className="bg-white rounded-2xl shadow-lg p-6 flex flex-col items-center justify-center">
               <div className="flex items-center gap-6">
                 <CircularProgress 
                   percentage={stats.overallProgress} 
-                  size={100} 
+                  size={200} 
                   strokeWidth={10}
                 />
                 <div className="text-left">
@@ -496,27 +498,29 @@ export default function AxePage({ params }: { params: Promise<{ axeId: string }>
               </div>
             </div>
           )}
-        </div>
 
-        {/* Première visite */}
-        {!userSelection.isStarted && (
-          <div className="bg-white rounded-3xl shadow-xl p-8 mb-8 text-center">
-            <div className="text-6xl mb-6">🚀</div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">
-              Prêt à commencer votre transformation ?
-            </h2>
-            <p className="text-lg text-gray-600 mb-6">
-              Cet axe comprend deux étapes : la Découverte (30%) et l'Encrage (70% en 3 niveaux).
-              Vous devez compléter chaque étape dans l'ordre.
-            </p>
-            <button
-              onClick={handleStartAxe}
-              className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 px-8 rounded-xl text-xl transition-colors"
-            >
-              Démarrer cet axe
-            </button>
-          </div>
-        )}
+          {/* Colonne 2 : Première visite */}
+          {!userSelection.isStarted && (
+            <div className="bg-white rounded-3xl shadow-xl p-8 flex flex-col items-center justify-center text-center">
+              <div className="text-6xl mb-6">🚀</div>
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">
+                Prêt à commencer votre transformation ?
+              </h2>
+              <p className="text-lg text-gray-600 mb-6">
+                <span className="text-sm text-gray-600">
+                  Cet axe comprend deux étapes : la <strong>Découverte</strong> et l'<strong>Encrage</strong> (en 3 niveaux).
+                  Vous devez compléter chaque étape dans l'ordre.
+                </span>
+              </p>
+              <button
+                onClick={handleStartAxe}
+                className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 px-8 rounded-xl text-xl transition-colors"
+              >
+                Démarrer cet axe
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Étapes */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

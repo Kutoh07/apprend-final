@@ -15,11 +15,13 @@ export default function AxeSelectionPage() {
   const router = useRouter();
   const [availableAxes, setAvailableAxes] = useState<RenaissanceAxe[]>([]);
   const [selectedAxes, setSelectedAxes] = useState<string[]>([]);
+  const [startedAxes, setStartedAxes] = useState<string[]>([]); // Axes qui ont commencé (non désélectionnables)
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [customAxeData, setCustomAxeData] = useState<CustomAxeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     loadUserAndAxes();
@@ -49,13 +51,31 @@ export default function AxeSelectionPage() {
       // Charger les sélections existantes
       const { data: selectionsData, error: selectionsError } = await supabase
         .from('user_renaissance_selection')
-        .select('axe_id, custom_name, custom_phrases')
+        .select('axe_id, custom_name, custom_phrases, is_started')
         .eq('user_id', session.user.id);
 
       if (selectionsError) {
         console.error('Erreur lors du chargement des sélections:', selectionsError);
       } else if (selectionsData && selectionsData.length > 0) {
         setSelectedAxes(selectionsData.map(s => s.axe_id));
+        
+        // Identifier les axes qui ont commencé (is_started = true)
+        let started = selectionsData.filter(s => s.is_started).map(s => s.axe_id);
+        
+        // Vérifier aussi s'il y a des données de progression pour ces axes
+        const { data: progressData } = await supabase
+          .from('user_renaissance_progress')
+          .select('axe_id')
+          .eq('user_id', session.user.id)
+          .in('axe_id', selectionsData.map(s => s.axe_id));
+        
+        // Ajouter les axes qui ont des données de progression aux axes non désélectionnables
+        if (progressData && progressData.length > 0) {
+          const axesWithProgress = progressData.map(p => p.axe_id);
+          started = [...new Set([...started, ...axesWithProgress])]; // Utiliser Set pour éviter les doublons
+        }
+        
+        setStartedAxes(started);
         
         // Vérifier s'il y a un axe personnalisé
         const customSelection = selectionsData.find(s => 
@@ -79,6 +99,18 @@ export default function AxeSelectionPage() {
 
   const handleAxeToggle = (axeId: string) => {
     const axe = availableAxes.find(a => a.id === axeId);
+    
+    // Effacer le message d'erreur précédent
+    setErrorMessage(null);
+    
+    // Vérifier si l'axe a commencé ou a des données de progression - ne peut pas être désélectionné
+    if (startedAxes.includes(axeId)) {
+      // Si l'utilisateur essaie de désélectionner un axe sur lequel il a progressé
+      if (selectedAxes.includes(axeId)) {
+        setErrorMessage("Impossible de désélectionner cet axe car vous avez déjà commencé à travailler dessus. Vos données de progression seraient perdues.");
+        return;
+      }
+    }
     
     if (axe?.isCustomizable) {
       if (selectedAxes.includes(axeId)) {
@@ -167,11 +199,11 @@ export default function AxeSelectionPage() {
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-4">
             <span className="bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent">
-              AXES DE RENAISSANCE
+              SÉLECTION DES AXES DE RENAISSANCE
             </span>
           </h1>
           <p className="text-lg text-gray-700 mb-6">
-            Sélectionnez un axe que vous voulez travailler en plus et ajoutez le à ton programme de renaissance
+            Gérez vos axes sélectionnés ou ajoutez-en de nouveaux
           </p>
           
           {/* Compteur */}
@@ -182,19 +214,66 @@ export default function AxeSelectionPage() {
             </span>
             <span className="text-sm text-gray-600 ml-2">(minimum 3)</span>
           </div>
+
+          {/* Message d'erreur */}
+          {errorMessage && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-xl mt-4 max-w-2xl mx-auto">
+              <div className="flex items-center gap-2">
+                <span>⚠️</span>
+                <span className="font-medium">{errorMessage}</span>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Grille d'axes */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          {availableAxes.map(axe => (
-            <AxeSelectionCard
-              key={axe.id}
-              axe={axe}
-              isSelected={selectedAxes.includes(axe.id)}
-              onToggle={handleAxeToggle}
-              disabled={!selectedAxes.includes(axe.id) && isMaxReached}
-            />
-          ))}
+        {/* Section des axes sélectionnés */}
+        {selectedAxes.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <span>✅</span>
+              Vos axes sélectionnés ({selectedAxes.length})
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {availableAxes
+                .filter(axe => selectedAxes.includes(axe.id))
+                .map(axe => (
+                  <AxeSelectionCard
+                    key={axe.id}
+                    axe={axe}
+                    isSelected={true}
+                    onToggle={handleAxeToggle}
+                    disabled={startedAxes.includes(axe.id)} // Désactivé si l'axe a commencé
+                    isStarted={startedAxes.includes(axe.id)} // Nouvelle prop pour indiquer qu'il a commencé
+                  />
+                ))}
+            </div>
+            {startedAxes.length > 0 && (
+              <p className="text-sm text-orange-600 mt-2">
+                ⚠️ Les axes sur lesquels vous avez déjà progressé ne peuvent plus être désélectionnés pour préserver vos données
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Section des axes disponibles */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <span>🎯</span>
+            Axes disponibles ({availableAxes.filter(axe => !selectedAxes.includes(axe.id)).length})
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {availableAxes
+              .filter(axe => !selectedAxes.includes(axe.id))
+              .map(axe => (
+                <AxeSelectionCard
+                  key={axe.id}
+                  axe={axe}
+                  isSelected={false}
+                  onToggle={handleAxeToggle}
+                  disabled={isMaxReached}
+                />
+              ))}
+          </div>
         </div>
 
         {/* Affichage axe personnalisé */}

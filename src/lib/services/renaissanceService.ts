@@ -62,6 +62,79 @@ export type { GameSession, PhraseAttempt, TextDifference, RenaissanceAxe, Renais
 
 // ===== SERVICE PRINCIPAL =====
 export class RenaissanceService {
+  /**
+   * Récupérer les statistiques détaillées d'une session - ADAPTÉ À TA TABLE
+   */
+  async getSessionStats(sessionId: string): Promise<GameResults | null> {
+    try {
+      // 1. Récupérer la session
+      const { data: session, error: sessionError } = await supabase
+        .from('renaissance_game_sessions')
+        .select('*')
+        .eq('id', sessionId)
+        .single();
+
+      if (sessionError || !session) {
+        console.error('❌ Session non trouvée:', sessionError);
+        return null;
+      }
+
+      // 2. Récupérer toutes les tentatives de cette session depuis TA table
+      const { data: attempts, error: attemptsError } = await supabase
+        .from('renaissance_attempts')  // ✅ Ta table existante
+        .select('*')
+        .eq('session_id', sessionId)
+        .order('phrase_number');
+
+      if (attemptsError) {
+        console.error('❌ Erreur récupération tentatives:', attemptsError);
+        return null;
+      }
+
+      // 3. Calculer les statistiques
+      const totalPhrases = attempts?.length || 0;
+      const correctAnswers = attempts?.filter(a => a.is_correct).length || 0;
+      const accuracy = totalPhrases > 0 ? Math.round((correctAnswers / totalPhrases) * 100) : 0;
+      
+      const validResponseTimes = attempts?.map(a => a.response_time_ms).filter(t => t && t > 0) || [];
+      const averageResponseTime = validResponseTimes.length > 0 
+        ? validResponseTimes.reduce((sum, time) => sum + time, 0) / validResponseTimes.length 
+        : 0;
+
+      const sessionStartTime = new Date(session.started_at).getTime();
+      const sessionEndTime = session.completed_at 
+        ? new Date(session.completed_at).getTime() 
+        : Date.now();
+      const timeSpent = sessionEndTime - sessionStartTime;
+
+      // 4. Mapper les tentatives au format attendu
+      const mappedAttempts: PhraseAttempt[] = attempts?.map(attempt => ({
+        userInput: attempt.user_input || '',
+        isCorrect: attempt.is_correct || false,
+        timestamp: new Date(attempt.submitted_at),
+        flashDuration: 500, // À récupérer depuis la session si disponible
+        responseTime: attempt.response_time_ms || 0,
+        expectedText: attempt.expected_text || '',
+        similarityScore: attempt.similarity_score || undefined,
+        differences: attempt.error_analysis || undefined
+      })) || [];
+
+      return {
+        totalPhrases,
+        correctAnswers,
+        accuracy,
+        attempts: mappedAttempts,
+        timeSpent,
+        averageResponseTime,
+        stage: session.stage,
+        level: this.getStageLabel ? this.getStageLabel(session.stage) : session.stage
+      };
+
+    } catch (error) {
+      console.error('❌ Erreur getSessionStats:', error);
+      return null;
+    }
+  }
   private supabaseService = renaissanceSupabaseService;
 
   // ========== GESTION DES SESSIONS DE JEU ==========
@@ -295,16 +368,16 @@ export class RenaissanceService {
   }
 
   /**
-   * Enregistrer une tentative avec mise à jour des stats
-   */
-  async recordAttempt(
-    sessionId: string,
-    phraseId: string,
-    phraseNumber: number,
-    attempt: PhraseAttempt
-  ): Promise<void> {
+ * Enregistrer une tentative - CORRIGÉ pour ta table existante
+ */
+async recordAttempt(
+  sessionId: string,
+  phraseId: string,
+  phraseNumber: number,
+  attempt: PhraseAttempt
+): Promise<void> {
     try {
-      // 1. Insérer la tentative détaillée
+      // ✅ CORRECTION: Utiliser la bonne table renaissance_attempts (sans game_)
       const { error: attemptError } = await supabase
         .from('renaissance_attempts')
         .insert({
@@ -317,22 +390,24 @@ export class RenaissanceService {
           response_time_ms: attempt.responseTime || null,
           similarity_score: attempt.similarityScore || null,
           error_analysis: attempt.differences || null,
+          error_type: attempt.isCorrect ? null : 'input_mismatch',
           shown_at: attempt.shownAt || new Date().toISOString(),
           submitted_at: new Date().toISOString()
         });
 
       if (attemptError) {
-        console.warn('⚠️ Table renaissance_attempts non disponible:', attemptError.message);
+        console.error('❌ Erreur insertion tentative:', attemptError);
+        throw attemptError;
       }
 
-      // 2. Mettre à jour les stats de session
+      // 2. Mettre à jour les stats de session (si le trigger ne le fait pas déjà)
       await this.updateSessionProgress(sessionId, phraseNumber - 1, attempt.isCorrect);
       
       console.log('✅ Tentative enregistrée:', { sessionId, phraseNumber, isCorrect: attempt.isCorrect });
 
     } catch (error) {
       console.error('❌ Erreur recordAttempt:', error);
-      // Ne pas throw pour éviter de bloquer l'utilisateur
+      throw error;
     }
   }
 
@@ -475,7 +550,15 @@ export class RenaissanceService {
   }
 
   // ========== MÉTHODES UTILITAIRES ==========
-  
+    private getStageLabel(stage: string): string {
+    switch (stage) {
+      case 'discovery': return 'Découverte';
+      case 'level1': return 'Niveau 1';
+      case 'level2': return 'Niveau 2';
+      case 'level3': return 'Niveau 3';
+      default: return stage;
+    }
+  }
   private getFlashDuration(stage: string): number {
     switch (stage) {
       case 'discovery': return 500;

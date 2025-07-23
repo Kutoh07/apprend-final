@@ -11,13 +11,15 @@ interface AxeSelectionCardProps {
   isSelected: boolean;
   onToggle: (axeId: string) => void;
   disabled?: boolean;
+  isStarted?: boolean; // Nouvelle prop pour indiquer si l'axe a commencé
 }
 
 export default function AxeSelectionCard({ 
   axe, 
   isSelected, 
   onToggle,
-  disabled = false 
+  disabled = false,
+  isStarted = false
 }: AxeSelectionCardProps) {
   const handleClick = () => {
     if (!disabled) {
@@ -82,7 +84,7 @@ export default function AxeSelectionCard({
         <div className="mt-4">
           {isSelected ? (
             <div className="text-purple-600 font-semibold text-sm">
-              ✅ Sélectionné
+              {isStarted ? '🚀 Commencé' : '✅ Sélectionné'}
             </div>
           ) : disabled ? (
             <div className="text-gray-500 text-sm">

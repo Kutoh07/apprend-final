@@ -2,10 +2,26 @@
 // src/lib/services/axeSupabaseService.ts
 
 import { supabase } from '../supabase';
-import type { RenaissanceAxe, RenaissancePhrase } from './renaissanceService';
+import type { RenaissancePhrase } from '../types/renaissance';
+
+// Type pour un axe sans les phrases (pour les listes)
+export interface AxeWithoutPhrases {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  sortOrder: number;
+  isActive: boolean;
+  isCustomizable: boolean;
+}
+
+// Type pour un axe avec ses phrases
+export interface AxeWithPhrases extends AxeWithoutPhrases {
+  phrases: RenaissancePhrase[];
+}
 
 export class AxeSupabaseService {
-  async getAxes(): Promise<RenaissanceAxe[]> {
+  async getAxes(): Promise<AxeWithoutPhrases[]> {
     try {
       const { data, error } = await supabase
         .from('renaissance_axes')
@@ -34,7 +50,7 @@ export class AxeSupabaseService {
     }
   }
 
-  async getAxeById(axeId: string): Promise<RenaissanceAxe | null> {
+  async getAxeById(axeId: string): Promise<AxeWithoutPhrases | null> {
     try {
       const { data, error } = await supabase
         .from('renaissance_axes')
@@ -63,7 +79,7 @@ export class AxeSupabaseService {
     }
   }
 
-  async getAxeWithPhrases(axeId: string): Promise<RenaissanceAxe | null> {
+  async getAxeWithPhrases(axeId: string): Promise<AxeWithPhrases | null> {
     try {
       const axe = await this.getAxeById(axeId);
       if (!axe) {

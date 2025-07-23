@@ -50,6 +50,57 @@ const NotEligibleMessage = () => {
 const RenaissanceWelcome = ({ stats }: { stats: RenaissanceStats | null }) => {
   const router = useRouter();
 
+  // Fonction pour naviguer vers l'axe actif ou le premier axe sélectionné
+  const navigateToActiveAxe = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+
+      // Récupérer les axes sélectionnés de l'utilisateur avec leurs progrès
+      const { data: selections } = await supabase
+        .from('user_renaissance_selection')
+        .select('axe_id, is_started')
+        .eq('user_id', session.user.id)
+        .order('selected_at', { ascending: true });
+
+      if (!selections || selections.length === 0) {
+        router.push('/renaissance/selection');
+        return;
+      }
+
+      // D'abord chercher un axe déjà commencé (is_started = true)
+      const startedAxe = selections.find(s => s.is_started);
+      
+      if (startedAxe) {
+        // Aller directement à la page de l'axe déjà commencé
+        router.push(`/renaissance/${startedAxe.axe_id}`);
+        return;
+      }
+
+      // Si aucun axe n'a encore été débuté, vérifier s'il y a des progrès dans les sessions
+      const { data: progressData } = await supabase
+        .from('user_renaissance_progress')
+        .select('axe_id, stage')
+        .eq('user_id', session.user.id)
+        .in('axe_id', selections.map(s => s.axe_id))
+        .order('last_attempt_at', { ascending: false });
+
+      if (progressData && progressData.length > 0) {
+        // Aller vers l'axe avec le plus de progrès récent
+        router.push(`/renaissance/${progressData[0].axe_id}`);
+        return;
+      }
+
+      // Sinon, aller au premier axe sélectionné (comme dans la page de sélection)
+      router.push(`/renaissance/${selections[0].axe_id}`);
+      
+    } catch (error) {
+      console.error('Erreur navigation vers axe actif:', error);
+      // En cas d'erreur, fallback vers la sélection
+      router.push('/renaissance/selection');
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto p-4">
       {/* Navigation et header */}
@@ -85,10 +136,16 @@ const RenaissanceWelcome = ({ stats }: { stats: RenaissanceStats | null }) => {
               RENAISSANCE
             </span>
           </h1>
-          <p className="text-xl text-gray-700 max-w-3xl mx-auto leading-relaxed">
-            Voici tes axes de renaissance personnalisés. Ils transformeront tes croyances et tes pensées, 
-            tout en t'aidant à mieux gérer tes émotions.
-          </p>
+            <div className="flex flex-col lg:flex-row items-center justify-center gap-8">
+            <blockquote className="relative text-lg text-gray-600 max-w-md italic font-light leading-tight">
+              <span className="text-4xl text-purple-300 absolute -top-2 -left-3">"</span>
+              <p className="pl-6 pr-3">
+              C'est ici que débute ta renaissance qui débutera par la sélection des axes personnalisés. Ils transformeront tes croyances et tes pensées, 
+              tout en t'aidant à mieux gérer tes émotions.
+              </p>
+              <span className="text-4xl text-purple-300 absolute -bottom-4 right-0">"</span>
+            </blockquote>
+            </div>
         </div>
       </div>
 
@@ -115,23 +172,39 @@ const RenaissanceWelcome = ({ stats }: { stats: RenaissanceStats | null }) => {
       )}
 
       {/* Actions principales */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        {/* Bouton Continuer - affiché seulement si des axes sont sélectionnés */}
+        {stats?.totalAxesSelected && (
+          <div className="bg-white rounded-3xl shadow-xl p-8 text-center hover:shadow-2xl transition-shadow">
+            <div className="text-6xl mb-6">⚡</div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">Continuer Renaissance</h2>
+            <p className="text-gray-600 mb-6">
+              Poursuivez votre parcours de transformation personnelle
+            </p>
+            <button
+              onClick={() => navigateToActiveAxe()}
+              className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-4 px-8 rounded-xl text-lg transition-colors w-full"
+            >
+              Continuer
+            </button>
+          </div>
+        )}
+
+        {/* Bouton Sélection des axes - toujours affiché */}
         <div className="bg-white rounded-3xl shadow-xl p-8 text-center hover:shadow-2xl transition-shadow">
-          <div className="text-6xl mb-6">⚡</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">
-            {stats?.totalAxesSelected ? 'Continuer Renaissance' : 'Commencer Renaissance'}
-          </h2>
+          <div className="text-6xl mb-6">🎯</div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Sélection des axes</h2>
           <p className="text-gray-600 mb-6">
             {stats?.totalAxesSelected 
-              ? 'Poursuivez votre parcours de transformation personnelle'
-              : 'Sélectionnez vos axes de renaissance et commencez votre transformation'
+              ? 'Gérez vos axes sélectionnés ou ajoutez-en de nouveaux'
+              : 'Choisissez vos axes de renaissance personnalisés'
             }
           </p>
           <button
-            onClick={() => router.push(stats?.totalAxesSelected ? '/renaissance/selection' : '/renaissance/selection')}
-            className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-4 px-8 rounded-xl text-lg transition-colors w-full"
+            onClick={() => router.push('/renaissance/selection')}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-8 rounded-xl text-lg transition-colors w-full"
           >
-            {stats?.totalAxesSelected ? 'Continuer' : 'Mes axes de renaissance ici'}
+            Sélection des axes
           </button>
         </div>
 
