@@ -148,28 +148,97 @@ export default function EncragePage({ params }: { params: Promise<{ axeId: strin
           }))
         : axeData.phrases || [];
 
-      // Charger les progrès utilisateur
-      const { data: progressData, error: progressError } = await supabase
-        .from('user_renaissance_progress')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .eq('axe_id', axeId);
 
-      if (progressError) {
-        console.error('Erreur chargement progrès:', progressError);
+      // ✅ CORRECTION: Charger les progrès depuis les SESSIONS ET legacy
+      const [sessionsResult, progressResult] = await Promise.allSettled([
+        // Sessions modernes
+        supabase
+          .from('renaissance_game_sessions')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .eq('axe_id', axeId),
+        // Progress legacy
+        supabase
+          .from('user_renaissance_progress')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .eq('axe_id', axeId)
+      ]);
+
+      // Typage explicite pour éviter any[]
+      type SessionProgress = {
+        stage: string;
+        is_completed?: boolean;
+        completed_at?: string;
+      };
+      type LegacyProgress = {
+        stage: string;
+        stage_completed?: boolean;
+        stage_completed_at?: string;
+      };
+      let sessionsData: SessionProgress[] = [];
+      let progressData: LegacyProgress[] = [];
+
+      if (sessionsResult.status === 'fulfilled') {
+        sessionsData = sessionsResult.value.data || [];
       }
 
-      // Construire les niveaux avec leurs états
+      if (progressResult.status === 'fulfilled') {
+        progressData = progressResult.value.data || [];
+      }
+
+      // ✅ CORRECTION: Combiner les progrès des sessions ET legacy
+      const combinedProgress = ['discovery', 'level1', 'level2', 'level3'].map(stage => {
+        // Vérifier dans les sessions modernes
+        const completedSession = sessionsData.find(s => 
+          s.stage === stage && s.is_completed === true
+        );
+        // Vérifier dans legacy
+        const legacyStage = progressData.find(p => 
+          p.stage === stage && p.stage_completed === true
+        );
+        const isCompleted = !!(completedSession || legacyStage);
+        return {
+          stage,
+          stage_completed: isCompleted,
+          stage_completed_at: completedSession?.completed_at || legacyStage?.stage_completed_at
+        };
+      });
+
+      console.log('🔍 Progrès combinés:', combinedProgress);
+
+      // Utiliser les progrès combinés
+      progressData = combinedProgress;
+
+      // ✅ CORRECTION: Construire les niveaux avec leurs états - VERSION HYBRIDE
       const levels: EncrageLevel[] = Object.entries(ENCRAGE_LEVELS).map(([key, levelConfig]) => {
         const levelProgress = progressData?.find(p => p.stage === key);
-        const isDiscoveryCompleted = progressData?.some(p => p.stage === 'discovery' && p.stage_completed);
-        const isLevel1Completed = progressData?.some(p => p.stage === 'level1' && p.stage_completed);
-        const isLevel2Completed = progressData?.some(p => p.stage === 'level2' && p.stage_completed);
+        // ✅ CORRECTION: Vérifier la découverte dans les sessions ET dans legacy
+        const isDiscoveryCompleted = progressData?.some(p => p.stage === 'discovery' && p.stage_completed) || false;
+        const isLevel1Completed = progressData?.some(p => p.stage === 'level1' && p.stage_completed) || false;
+        const isLevel2Completed = progressData?.some(p => p.stage === 'level2' && p.stage_completed) || false;
+
+        // ✅ AJOUT: Log pour déboguer
+        console.log(`🔍 Vérification niveaux pour ${key}:`, {
+          isDiscoveryCompleted,
+          isLevel1Completed,
+          isLevel2Completed,
+          progressData: progressData?.map(p => ({ stage: p.stage, completed: p.stage_completed }))
+        });
 
         let isUnlocked = false;
-        if (key === 'level1') isUnlocked = isDiscoveryCompleted || false;
-        if (key === 'level2') isUnlocked = isLevel1Completed || false;
-        if (key === 'level3') isUnlocked = isLevel2Completed || false;
+        if (key === 'level1') {
+          isUnlocked = isDiscoveryCompleted;
+          console.log(`🔓 Level1 unlock check: discovery=${isDiscoveryCompleted} → unlocked=${isUnlocked}`);
+        }
+        if (key === 'level2') {
+          isUnlocked = isLevel1Completed;
+          console.log(`🔓 Level2 unlock check: level1=${isLevel1Completed} → unlocked=${isUnlocked}`);
+        }
+        if (key === 'level3') {
+          isUnlocked = isLevel2Completed;
+          console.log(`🔓 Level3 unlock check: level2=${isLevel2Completed} → unlocked=${isUnlocked}`);
+        }
 
         return {
           ...levelConfig,
