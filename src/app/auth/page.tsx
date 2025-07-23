@@ -185,17 +185,7 @@ export default function AuthChoicePage() {
             </button>
           </div>
 
-          {/* Bouton de diagnostic temporaire - À SUPPRIMER EN PRODUCTION 
-          {process.env.NODE_ENV === 'development' && (
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <button
-                onClick={() => diagnoseProblem.runFullDiagnosis()}
-                className="w-full bg-red-100 hover:bg-red-200 text-red-700 font-bold py-2 px-4 rounded border border-red-300 transition-colors"
-              >
-                🔍 Diagnostic OAuth (DEV ONLY)
-              </button>
-            </div>
-          )}*/}
+          {/* Section illustrative - options de connexion */}
         </div>
 
         {/* Note explicative */}
