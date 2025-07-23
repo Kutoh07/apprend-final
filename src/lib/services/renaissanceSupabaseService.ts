@@ -445,53 +445,71 @@ export class RenaissanceSupabaseService {
       ).length;
 
       // Calculer les statistiques par axe
-      const axesStats: AxeStats[] = selections.map(selection => {
+      const axesStats: AxeStats[] = await Promise.all(selections.map(async (selection) => {
         const axe = axesMap.get(selection.axeId);
         const axeProgress = progress.filter(p => p.axeId === selection.axeId);
         
-        const discoveryStage = axeProgress.find(p => p.stage === 'discovery');
-        const level1Stage = axeProgress.find(p => p.stage === 'level1');
-        const level2Stage = axeProgress.find(p => p.stage === 'level2');
-        const level3Stage = axeProgress.find(p => p.stage === 'level3');
+        // ✅ CORRECTION: Récupérer AUSSI les sessions de jeu pour cet axe
+        const { data: sessionsData } = await supabase
+          .from('renaissance_game_sessions')
+          .select('stage, session_accuracy, is_completed, total_attempts')
+          .eq('user_id', userId)
+          .eq('axe_id', selection.axeId);
+
+        const sessions = sessionsData || [];
+        const completedSessions = sessions.filter((s: any) => s.is_completed);
+
+        // ✅ CORRECTION: Utiliser la même logique que dans [axeId]/page.tsx
+        const discoveryCompleted = completedSessions.some((s: any) => s.stage === 'discovery') || 
+                                 axeProgress.some(p => p.stage === 'discovery' && p.stageCompleted);
+        const level1Completed = completedSessions.some((s: any) => s.stage === 'level1') || 
+                               axeProgress.some(p => p.stage === 'level1' && p.stageCompleted);
+        const level2Completed = completedSessions.some((s: any) => s.stage === 'level2') || 
+                               axeProgress.some(p => p.stage === 'level2' && p.stageCompleted);
+        const level3Completed = completedSessions.some((s: any) => s.stage === 'level3') || 
+                               axeProgress.some(p => p.stage === 'level3' && p.stageCompleted);
 
         // Calculer progression globale (Découverte 30% + Encrage 70%)
         let overallProgress = 0;
-        if (discoveryStage?.stageCompleted) overallProgress += 30;
-        if (level1Stage?.stageCompleted) overallProgress += 23.33;
-        if (level2Stage?.stageCompleted) overallProgress += 23.33;
-        if (level3Stage?.stageCompleted) overallProgress += 23.34;
+        if (discoveryCompleted) overallProgress += 30;
+        if (level1Completed) overallProgress += 23.33;
+        if (level2Completed) overallProgress += 23.33;
+        if (level3Completed) overallProgress += 23.34;
 
-        // Calculer les précisions (à implémenter avec les vraies tentatives)
-        const totalAttempts = axeProgress.reduce((sum, stage) => {
-          if (stage.attempts) {
-            return sum + Object.values(stage.attempts).flat().length;
-          }
-          return sum;
-        }, 0);
+        // Calculer les précisions et tentatives depuis les sessions
+        const totalAttempts = sessions.reduce((sum: number, s: any) => sum + (s.total_attempts || 0), 0);
+        const averageAccuracy = completedSessions.length > 0 
+          ? completedSessions.reduce((sum: number, s: any) => sum + (s.session_accuracy || 0), 0) / completedSessions.length
+          : 0;
 
         return {
           axeId: selection.axeId,
           axeName: selection.customName || axe?.name || 'Axe inconnu',
           overallProgress: Math.round(overallProgress),
-          discoveryCompleted: discoveryStage?.stageCompleted || false,
-          discoveryAccuracy: 85, // À calculer depuis les vraies tentatives
-          level1Completed: level1Stage?.stageCompleted || false,
+          discoveryCompleted,
+          discoveryAccuracy: 85, // À calculer précisément si nécessaire
+          level1Completed,
           level1Accuracy: 88,
-          level2Completed: level2Stage?.stageCompleted || false,
+          level2Completed,
           level2Accuracy: 92,
-          level3Completed: level3Stage?.stageCompleted || false,
+          level3Completed,
           level3Accuracy: 95,
           totalAttempts,
-          averageAccuracy: 90,
+          averageAccuracy: Math.round(averageAccuracy),
           timeSpent: 45, // À calculer
-          difficulty: this.calculateDifficulty(overallProgress, 90), // Ajouter la difficulté
-          commonMistakes: this.extractCommonMistakes(totalAttempts) // Ajouter les erreurs communes
+          difficulty: this.calculateDifficulty(overallProgress, averageAccuracy), // Utiliser la vraie précision
+          commonMistakes: this.extractCommonMistakes(totalAttempts)
         };
-      });
+      }));
 
       // Calculer les moyennes globales
       const averageAccuracy = axesStats.length > 0 
         ? axesStats.reduce((sum, axe) => sum + axe.averageAccuracy, 0) / axesStats.length 
+        : 0;
+
+      // ✅ CORRECTION: Calculer la progression totale comme moyenne de tous les axes sélectionnés
+      const totalProgress = axesStats.length > 0 
+        ? Math.round(axesStats.reduce((sum, axe) => sum + axe.overallProgress, 0) / axesStats.length)
         : 0;
 
       const totalTimeSpent = axesStats.reduce((sum, axe) => sum + axe.timeSpent, 0);
@@ -500,7 +518,7 @@ export class RenaissanceSupabaseService {
       const stats: ExtendedRenaissanceStats = {
         totalAxesSelected,
         axesCompleted,
-        totalProgress: totalAxesSelected > 0 ? Math.round((axesCompleted / totalAxesSelected) * 100) : 0,
+        totalProgress, // ✅ Utiliser la moyenne calculée
         discoveryCompleted,
         encrageCompleted,
         averageAccuracy: Math.round(averageAccuracy),

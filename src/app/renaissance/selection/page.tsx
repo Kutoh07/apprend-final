@@ -293,7 +293,13 @@ export default function AxeSelectionPage() {
         )}
 
         {/* Actions */}
-        <div className="text-center">
+        <div className="flex justify-center items-center gap-4">
+          <button
+            onClick={() => router.push('/renaissance')}
+            className="px-6 py-3 text-purple-600 hover:text-purple-800 font-medium border border-purple-300 hover:border-purple-400 rounded-2xl transition-all duration-200"
+          >
+            🏃‍♂️ Retour à Renaissance
+          </button>
           <button
             onClick={handleValidateSelection}
             disabled={!canValidate || saving}

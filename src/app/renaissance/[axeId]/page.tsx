@@ -458,7 +458,7 @@ export default function AxePage({ params }: { params: Promise<{ axeId: string }>
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-100 to-pink-100">
       <div className="max-w-6xl mx-auto p-4">
-        {/* Header + Progression globale + Première visite côte à côte */}
+        {/* Header axe */}
         <div className="text-center mb-8">
           <button
             onClick={() => router.push('/renaissance')}
@@ -477,49 +477,78 @@ export default function AxePage({ params }: { params: Promise<{ axeId: string }>
           </p>
         </div>
 
-        {/* Progression globale + Première visite côte à côte */}
+        {/* Progression globale */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
           {/* Colonne 1 : Progression globale */}
-          {stats && (
-            <div className="bg-white rounded-2xl shadow-lg p-6 flex flex-col items-center justify-center">
-              <div className="flex items-center gap-6">
-                <CircularProgress 
-                  percentage={stats.overallProgress} 
-                  size={200} 
-                  strokeWidth={10}
-                />
-                <div className="text-left">
-                  <div className="text-2xl font-bold text-gray-800">{stats.overallProgress}%</div>
-                  <div className="text-sm text-gray-600">Progression totale</div>
-                  <div className="text-sm text-purple-600 mt-1">
-                    Précision moyenne: {Math.round(stats.averageAccuracy)}%
-                  </div>
+          <div className="bg-white rounded-2xl shadow-lg p-6 flex flex-col items-center justify-center">
+            <div className="flex items-center gap-6">
+              <CircularProgress 
+                percentage={stats?.overallProgress || 0} 
+                size={200} 
+                strokeWidth={10}
+              />
+              <div className="text-left">
+                <div className="text-2xl font-bold text-gray-800">{stats?.overallProgress || 0}%</div>
+                <div className="text-sm text-gray-600">Progression totale</div>
+                <div className="text-sm text-purple-600 mt-1">
+                  Précision moyenne: {Math.round(stats?.averageAccuracy || 0)}%
                 </div>
               </div>
             </div>
-          )}
+          </div>
 
           {/* Colonne 2 : Première visite */}
-          {!userSelection.isStarted && (
-            <div className="bg-white rounded-3xl shadow-xl p-8 flex flex-col items-center justify-center text-center">
-              <div className="text-6xl mb-6">🚀</div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-4">
-                Prêt à commencer votre transformation ?
-              </h2>
-              <p className="text-lg text-gray-600 mb-6">
-                <span className="text-sm text-gray-600">
-                  Cet axe comprend deux étapes : la <strong>Découverte</strong> et l'<strong>Encrage</strong> (en 3 niveaux).
-                  Vous devez compléter chaque étape dans l'ordre.
-                </span>
-              </p>
+          <div className="bg-white rounded-3xl shadow-xl p-8 flex flex-col items-center justify-center text-center">
+            <div className="text-6xl mb-6">🚀</div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">
+              {!userSelection?.isStarted 
+                ? "Prêt à commencer votre transformation ?" 
+                : "Continuez votre transformation !"}
+            </h2>
+            <p className="text-lg text-gray-600 mb-6">
+              <span className="text-sm text-gray-600">
+                Cet axe comprend deux étapes : la <strong>Découverte</strong> et l'<strong>Encrage</strong> (en 3 niveaux).
+                Vous devez compléter chaque étape dans l'ordre.
+              </span>
+            </p>
+            {!userSelection?.isStarted ? (
               <button
                 onClick={handleStartAxe}
                 className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 px-8 rounded-xl text-xl transition-colors"
               >
                 Démarrer cet axe
               </button>
-            </div>
-          )}
+            ) : (
+              <div className="space-y-3">
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                  <div className="font-semibold text-purple-800 mb-1">Prochaine étape</div>
+                  <div className="text-sm text-purple-600">
+                    {!discoveryProgress?.stageCompleted ? 'Commencer la Découverte' :
+                     !level1Progress?.stageCompleted ? 'Encrage Niveau 1' :
+                     !level2Progress?.stageCompleted ? 'Encrage Niveau 2' :
+                     !level3Progress?.stageCompleted ? 'Encrage Niveau 3' :
+                     'Tous les niveaux complétés ! 🎉'}
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (!discoveryProgress?.stageCompleted) handleStageClick('discovery');
+                      else if (!level1Progress?.stageCompleted) handleStageClick('level1');
+                      else if (!level2Progress?.stageCompleted) handleStageClick('level2');
+                      else if (!level3Progress?.stageCompleted) handleStageClick('level3');
+                    }}
+                    disabled={level3Progress?.stageCompleted}
+                    className="mt-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-lg text-sm transition-colors"
+                  >
+                    {!discoveryProgress?.stageCompleted ? 'Découverte' :
+                     !level1Progress?.stageCompleted ? 'Niveau 1' :
+                     !level2Progress?.stageCompleted ? 'Niveau 2' :
+                     !level3Progress?.stageCompleted ? 'Niveau 3' :
+                     'Complété'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Étapes */}
