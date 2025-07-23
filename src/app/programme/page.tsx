@@ -303,7 +303,7 @@ export default function ProgrammePage() {
     <div className="min-h-screen bg-gradient-to-br from-pink-100 to-purple-100 p-4">
       <div className="max-w-6xl mx-auto">
         
-        {/* Indicateur de statut Supabase avec recalcul */}
+        {/* Indicateur de statut Supabase avec recalcul 
         <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
@@ -328,7 +328,7 @@ export default function ProgrammePage() {
               </span>
             </button>
           </div>
-        </div>
+        </div>*/}
 
         {/* Rest of the component remains the same... */}
         {/* Header principal */}
@@ -591,7 +591,7 @@ export default function ProgrammePage() {
           )}
         </div>
 
-        {/* Informations de développement (à supprimer en production) */}
+        {/* Informations de développement (à supprimer en production) 
         {process.env.NODE_ENV === 'development' && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
             <h4 className="font-bold text-blue-700 mb-2">🔧 Informations de développement</h4>
@@ -608,7 +608,7 @@ export default function ProgrammePage() {
               </div>
             </div>
           </div>
-        )}
+        )}*/}
       </div>
     </div>
   );

@@ -27,11 +27,12 @@ export const Header: React.FC<HeaderProps> = ({ user, programmeData, onNavigate,
               Membre depuis le {new Date(user.createdAt).toLocaleDateString('fr-FR')}
             </p>
           )}
+          {/* Affichage du programme si disponible 
           {programmeData && (
             <p className="text-sm text-teal-600 font-medium">
               Programme : {programmeData.subParts.filter(sp => sp.completed).length}/8 parties complétées
             </p>
-          )}
+          )}*/}
         </div>
         <div className="flex items-center space-x-2">
           <button

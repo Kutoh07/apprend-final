@@ -20,7 +20,7 @@ export default function ConclusionPage() {
       }
 
       const userData = JSON.parse(user);
-      const programme = await programmeSupabaseService.getProgramme(userData.email);
+      const programme = await programmeSupabaseService.getProgramme(userData.id);
       
       if (!programme || programme.overallProgress < 100) {
         router.push('/programme');

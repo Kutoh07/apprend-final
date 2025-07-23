@@ -414,7 +414,17 @@ async recordAttempt(
   // ========== GESTION DES AXES ET PHRASES ==========
   
   async getAvailableAxes(): Promise<RenaissanceAxe[]> {
-    return this.supabaseService.getAxes();
+    try {
+      const axesWithoutPhrases = await this.supabaseService.getAxes();
+      // Convertir AxeWithoutPhrases[] vers RenaissanceAxe[] en ajoutant phrases: []
+      return axesWithoutPhrases.map(axe => ({
+        ...axe,
+        phrases: [] // Les phrases seront chargées séparément si nécessaire
+      }));
+    } catch (error) {
+      console.error('Erreur getAvailableAxes:', error);
+      throw error;
+    }
   }
 
   async getAxeWithPhrases(axeId: string): Promise<RenaissanceAxe | null> {
@@ -504,14 +514,23 @@ async recordAttempt(
   
   async getUserStats(userId: string): Promise<RenaissanceStats> {
     try {
-      // Essayer le cache d'abord
+      // Essayer le cache d'abord (gérer gracieusement si la table n'existe pas)
       const { data, error } = await supabase
         .from('renaissance_user_stats_cache')
         .select('*')
         .eq('user_id', userId)
         .single();
 
-      if (error && error.code !== 'PGRST116') throw error;
+      // Si la table n'existe pas (erreur 406) ou autre erreur de base, utiliser le fallback
+      if (error && (error.code === 'PGRST116' || error.message?.includes('does not exist') || error.message?.includes('Not Acceptable'))) {
+        console.log('Cache non disponible, utilisation du calcul direct');
+        return await this.getUserStatsLegacy(userId);
+      }
+      
+      if (error) {
+        console.warn('Erreur cache, fallback vers legacy:', error);
+        return await this.getUserStatsLegacy(userId);
+      }
       
       if (data) {
         return {
@@ -528,7 +547,7 @@ async recordAttempt(
       // Fallback vers l'ancienne méthode
       return await this.getUserStatsLegacy(userId);
     } catch (error) {
-      console.error('Erreur getUserStats:', error);
+      console.warn('Erreur getUserStats, utilisation du fallback:', error);
       return await this.getUserStatsLegacy(userId);
     }
   }

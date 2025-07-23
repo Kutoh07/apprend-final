@@ -51,12 +51,17 @@ export class RenaissanceSupabaseService {
    * Récupère tous les axes disponibles
    */
   async getAxes(): Promise<RenaissanceAxe[]> {
-    const { data, error } = await supabase
-      .from('renaissance_axes')
-      .select('*')
-      .order('sort_order');
-    if (error) throw error;
-    return data || [];
+    try {
+      const axesWithoutPhrases = await axeSupabaseService.getAxes();
+      // Convertir AxeWithoutPhrases[] vers RenaissanceAxe[] en ajoutant phrases: []
+      return axesWithoutPhrases.map(axe => ({
+        ...axe,
+        phrases: [] // Les phrases seront chargées séparément si nécessaire
+      }));
+    } catch (error) {
+      console.error('Erreur getAxes:', error);
+      throw error;
+    }
   }
 
   /**

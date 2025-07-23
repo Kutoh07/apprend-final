@@ -7,13 +7,23 @@ import { supabase } from '../../lib/supabase';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { User } from '@supabase/supabase-js'; // Import du type User
+import { diagnoseProblem } from '../../lib/oauth-diagnosis';
 
 export default function AuthChoicePage() {
   const router = useRouter();
-  // Corriger le type : User | null au lieu de null
   const [user, setUser] = useState<User | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Vérifier les erreurs dans l'URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlError = urlParams.get('error');
+    const description = urlParams.get('description');
+    
+    if (urlError) {
+      setError(`Erreur d'authentification: ${urlError}${description ? ` - ${description}` : ''}`);
+    }
+
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
@@ -39,39 +49,55 @@ export default function AuthChoicePage() {
   }, [router]);
 
   const handleGoogleAuth = async () => {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`
+    setError(null); // Reset erreur précédente
+    
+    try {
+      console.log('Tentative connexion Google...');
+      
+      // Option 1: Laisser Supabase gérer le callback automatiquement
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
+        }
+      });
+      
+      if (error) {
+        console.error('Erreur Google OAuth:', error);
+        setError(`Erreur Google: ${error.message}`);
+      } else {
+        console.log('Redirection vers Google initiée:', data);
       }
-    });
-    if (error) {
-      console.error('Erreur Google:', error);
-      alert(`Erreur: ${error.message}`);
-    } else {
-      console.log('Redirection vers Google:', data);
-    };
+    } catch (err) {
+      console.error('Exception Google Auth:', err);
+      setError('Erreur inattendue lors de la connexion Google');
+    }
   };
 
-  const handleAppleAuth = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'apple',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`
-      }
-    });
-    if (error) console.error('Erreur Apple:', error);
-  };
+  // Connexions désactivées
+  // const handleAppleAuth = async () => {
+  //   const { error } = await supabase.auth.signInWithOAuth({
+  //     provider: 'apple',
+  //     options: {
+  //       redirectTo: `${window.location.origin}/auth/callback`
+  //     }
+  //   });
+  //   if (error) console.error('Erreur Apple:', error);
+  // };
 
-  const handleMicrosoftAuth = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'azure',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`
-      }
-    });
-    if (error) console.error('Erreur Microsoft:', error);
-  };
+  // const handleMicrosoftAuth = async () => {
+  //   const { error } = await supabase.auth.signInWithOAuth({
+  //     provider: 'azure',
+  //     options: {
+  //       redirectTo: `${window.location.origin}/auth/callback`
+  //     }
+  //   });
+  //   if (error) console.error('Erreur Microsoft:', error);
+  // };
 
   const handleEmailAuth = () => {
     router.push('/auth/login');
@@ -89,6 +115,16 @@ export default function AuthChoicePage() {
             L'excellence mentale ancrée de manière durable.
           </p>
         </div>
+
+        {/* Affichage des erreurs */}
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl">
+            <div className="flex items-center gap-2">
+              <span>⚠️</span>
+              <span className="text-sm">{error}</span>
+            </div>
+          </div>
+        )}
 
         {/* Section illustrative */}
         <div className="flex justify-center items-center mb-8">
@@ -141,34 +177,6 @@ export default function AuthChoicePage() {
             </button>
 
             <button 
-              onClick={handleAppleAuth}
-              className="flex items-center justify-center w-full py-4 px-6 border-2 border-gray-300 rounded-2xl hover:border-gray-400 hover:bg-gray-50 transition-all duration-200 group hover:shadow-md"
-            >
-              <Image
-                src="/images/icons/apple.svg"
-                alt="Apple"
-                width={30}
-                height={30}
-                className="mr-4"
-              />
-              <span className="text-gray-700 font-medium">Se connecter avec Apple</span>
-            </button>
-
-            <button 
-              onClick={handleMicrosoftAuth}
-              className="flex items-center justify-center w-full py-4 px-6 border-2 border-gray-300 rounded-2xl hover:border-gray-400 hover:bg-gray-50 transition-all duration-200 group hover:shadow-md"
-            >
-              <Image
-                src="/images/icons/microsoft.svg"
-                alt="Microsoft"
-                width={30}
-                height={30}
-                className="mr-4"
-              />
-              <span className="text-gray-700 font-medium">Se connecter avec Microsoft</span>
-            </button>
-
-            <button 
               onClick={handleEmailAuth}
               className="flex items-center justify-center w-full py-4 px-6 border-2 border-gray-300 rounded-2xl hover:border-gray-400 hover:bg-gray-50 transition-all duration-200 group hover:shadow-md"
             >
@@ -176,11 +184,23 @@ export default function AuthChoicePage() {
               <span className="text-gray-700 font-medium">Se connecter avec un email</span>
             </button>
           </div>
+
+          {/* Bouton de diagnostic temporaire - À SUPPRIMER EN PRODUCTION */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <button
+                onClick={() => diagnoseProblem.runFullDiagnosis()}
+                className="w-full bg-red-100 hover:bg-red-200 text-red-700 font-bold py-2 px-4 rounded border border-red-300 transition-colors"
+              >
+                🔍 Diagnostic OAuth (DEV ONLY)
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Note explicative */}
         <div className="mt-8 text-xs text-gray-500 italic text-center">
-          Authentification sécurisée avec Supabase
+          Choisissez votre méthode de connexion préférée. Si vous n'avez pas de compte, vous pouvez en créer un lors de la connexion.
         </div>
       </div>
     </div>
