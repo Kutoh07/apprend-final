@@ -361,7 +361,15 @@ export function LevelNavigation({
             return (
               <div key={level.stage} className="relative group">
                 <button
-                  onClick={() => canAccess && onLevelSelect && onLevelSelect(level.stage)}
+                  onClick={() => {
+                    console.log('🖱️ Clic sur niveau:', level.stage, 'canAccess:', canAccess);
+                    if (canAccess && onLevelSelect) {
+                      console.log('✅ Appel onLevelSelect pour:', level.stage);
+                      onLevelSelect(level.stage);
+                    } else {
+                      console.log('❌ Clic ignoré - canAccess:', canAccess, 'onLevelSelect:', !!onLevelSelect);
+                    }
+                  }}
                   disabled={!canAccess}
                   className={`
                     w-10 h-10 rounded-full border-2 flex items-center justify-center text-base font-bold shadow transition-all duration-200

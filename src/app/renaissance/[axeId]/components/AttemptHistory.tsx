@@ -78,7 +78,18 @@ export default function AttemptHistory({
   }
   
   if (attempts.length === 0) {
-    return null; // ✅ Ne rien afficher s'il n'y a pas de tentatives
+    return (
+      <div className="bg-white rounded-2xl shadow-lg p-6">
+        <h3 className="text-lg font-bold text-gray-800 mb-4">📊 Historique des tentatives</h3>
+        <div className="text-center py-8">
+          <div className="text-4xl mb-4">📝</div>
+          <p className="text-gray-500 text-lg mb-2">Aucune tentative enregistrée</p>
+          <p className="text-gray-400 text-sm">
+            Commencez une session pour voir votre historique ici
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (

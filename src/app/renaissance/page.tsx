@@ -210,7 +210,7 @@ const RenaissanceWelcome = ({ stats }: { stats: RenaissanceStats | null }) => {
 
         <div className="bg-white rounded-3xl shadow-xl p-8 text-center hover:shadow-2xl transition-shadow">
           <div className="text-6xl mb-6">📊</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Voir mes progrès</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Mes progrès</h2>
           <p className="text-gray-600 mb-6">
             Analysez votre évolution et vos performances dans chaque axe de renaissance
           </p>
@@ -219,7 +219,7 @@ const RenaissanceWelcome = ({ stats }: { stats: RenaissanceStats | null }) => {
             className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-8 rounded-xl text-lg transition-colors w-full"
             disabled={!stats?.totalAxesSelected}
           >
-            {stats?.totalAxesSelected ? 'Voir les statistiques' : 'Pas encore de données'}
+            {stats?.totalAxesSelected ? 'Voir comment j\'évolue' : 'Pas encore de données'}
           </button>
         </div>
       </div>

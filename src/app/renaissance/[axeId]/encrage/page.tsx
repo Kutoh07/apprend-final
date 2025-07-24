@@ -281,11 +281,116 @@ export default function EncragePage({ params }: { params: Promise<{ axeId: strin
         sessionStartTime: Date.now()
       }));
 
+      // ✅ AJOUT: Vérifier s'il y a des tentatives précédentes pour ce niveau
+      await checkForExistingAttempts(session.user.id, currentLevel.stage);
+
     } catch (error) {
       console.error('Erreur lors du chargement:', error);
       router.push('/renaissance');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ✅ AJOUT: Fonction pour vérifier les tentatives existantes
+  const checkForExistingAttempts = async (userId: string, currentStage: string) => {
+    try {
+      const { data: existingSessions } = await supabase
+        .from('renaissance_game_sessions')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('axe_id', axeId)
+        .eq('stage', currentStage)
+        .limit(1);
+
+      // Si des sessions existent, forcer l'affichage de l'historique
+      if (existingSessions && existingSessions.length > 0) {
+        console.log('🔍 Tentatives existantes détectées pour', currentStage, '- affichage de l\'historique');
+        setShowAttemptHistory(true);
+      } else {
+        console.log('📝 Aucune tentative existante pour', currentStage);
+        setShowAttemptHistory(false);
+      }
+    } catch (error) {
+      console.error('Erreur vérification tentatives existantes:', error);
+      setShowAttemptHistory(false);
+    }
+  };
+
+  // ✅ AJOUT: Fonctions de navigation manquantes
+  const handleLevelChange = async (newStage: string) => {
+    console.log('🔄 Navigation demandée vers:', newStage);
+
+    // ✅ CORRECTION: Pour la découverte, aller directement sans vérifier allLevels
+    if (newStage === 'discovery') {
+      console.log('🧠 Redirection vers découverte');
+      router.push(`/renaissance/${axeId}/discovery`);
+      return;
+    }
+
+    // Pour les niveaux d'encrage, vérifier qu'ils sont déverrouillés
+    const targetLevel = allLevels.find(l => l.stage === newStage);
+    if (!targetLevel?.isUnlocked) {
+      console.log('🔒 Niveau verrouillé:', newStage);
+      return;
+    }
+
+    // Pour les niveaux d'encrage, toujours forcer l'affichage de l'historique s'il existe
+    if (userId) {
+      try {
+        const { data: existingSessions } = await supabase
+          .from('renaissance_game_sessions')
+          .select('id, session_accuracy, is_completed')
+          .eq('user_id', userId)
+          .eq('axe_id', axeId)
+          .eq('stage', newStage)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        // Si des sessions existent ET que le niveau est complété (100%), 
+        // forcer l'affichage de l'historique en rechargeant la page
+        if (existingSessions && existingSessions.length > 0) {
+          console.log('🔍 Sessions existantes trouvées pour', newStage, ':', existingSessions);
+          
+          // Forcer le rechargement de la page pour afficher l'historique
+          if (newStage === level) {
+            // Même niveau : forcer le rechargement pour afficher l'historique
+            window.location.reload();
+          } else {
+            // Niveau différent : naviguer vers le niveau
+            router.push(`/renaissance/${axeId}/encrage?level=${newStage}`);
+          }
+          return;
+        }
+      } catch (error) {
+        console.error('Erreur vérification sessions:', error);
+      }
+    }
+
+    // Sinon, naviguer normalement
+    router.push(`/renaissance/${axeId}/encrage?level=${newStage}`);
+  };
+
+  const handlePreviousLevel = () => {
+    const currentIndex = allLevels.findIndex(l => l.stage === level);
+    if (currentIndex > 0) {
+      const previousLevel = allLevels[currentIndex - 1];
+      if (previousLevel.isUnlocked) {
+        handleLevelChange(previousLevel.stage);
+      }
+    } else {
+      // Retour à la découverte
+      router.push(`/renaissance/${axeId}/discovery`);
+    }
+  };
+
+  const handleNextLevel = () => {
+    const currentIndex = allLevels.findIndex(l => l.stage === level);
+    if (currentIndex < allLevels.length - 1) {
+      const nextLevel = allLevels[currentIndex + 1];
+      if (nextLevel.isUnlocked) {
+        handleLevelChange(nextLevel.stage);
+      }
     }
   };
 
@@ -548,34 +653,6 @@ export default function EncragePage({ params }: { params: Promise<{ axeId: strin
     router.push(`/renaissance/${axeId}`);
   };
 
-  const handleLevelChange = (newLevel: string) => {
-    if (newLevel === 'discovery') {
-      // Pour discovery, aller vers la page discovery
-      router.push(`/renaissance/${axeId}/discovery`);
-    } else {
-      // Pour les niveaux d'encrage
-      router.push(`/renaissance/${axeId}/encrage?level=${newLevel}`);
-    }
-  };
-
-  const handlePreviousLevel = () => {
-    const levels = ['level1', 'level2', 'level3'];
-    const currentIndex = levels.indexOf(level);
-    if (currentIndex > 0) {
-      const previousLevel = levels[currentIndex - 1];
-      handleLevelChange(previousLevel);
-    }
-  };
-
-  const handleNextLevel = () => {
-    const levels = ['level1', 'level2', 'level3'];
-    const currentIndex = levels.indexOf(level);
-    if (currentIndex < levels.length - 1) {
-      const nextLevel = levels[currentIndex + 1];
-      handleLevelChange(nextLevel);
-    }
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center">
@@ -619,7 +696,10 @@ export default function EncragePage({ params }: { params: Promise<{ axeId: strin
               userId={userId || undefined}
               onPrevious={handlePreviousLevel}
               onNext={handleNextLevel}
-              onLevelSelect={handleLevelChange}
+              onLevelSelect={(stage) => {
+                console.log('🎯 LevelNavigation (résultats) - onLevelSelect appelé avec:', stage);
+                handleLevelChange(stage);
+              }}
             />
           </div>
 
@@ -691,7 +771,10 @@ export default function EncragePage({ params }: { params: Promise<{ axeId: strin
             userId={userId || undefined}
             onPrevious={handlePreviousLevel}
             onNext={handleNextLevel}
-            onLevelSelect={handleLevelChange}
+            onLevelSelect={(stage) => {
+              console.log('🎯 LevelNavigation (écran accueil) - onLevelSelect appelé avec:', stage);
+              handleLevelChange(stage);
+            }}
           />
         </div>
 
@@ -758,21 +841,19 @@ export default function EncragePage({ params }: { params: Promise<{ axeId: strin
             </div>
           </div>
 
-          {/* ✅ MODIFICATION: Historique des tentatives - Affiché seulement s'il y a des tentatives */}
-          {showAttemptHistory && (
-            <div className="mt-8">
-              <AttemptHistory 
-                axeId={axeId} 
-                userId={userId} 
-                level={state.currentLevel.stage}
-                onDataLoaded={(hasAttempts) => {
-                  if (!hasAttempts) {
-                    setShowAttemptHistory(false);
-                  }
-                }}
-              />
-            </div>
-          )}
+          {/* ✅ MODIFICATION: Historique des tentatives - Toujours affiché */}
+          <div className="mt-8">
+            <AttemptHistory 
+              axeId={axeId} 
+              userId={userId} 
+              level={state.currentLevel.stage}
+              onDataLoaded={(hasAttempts) => {
+                console.log('📊 Historique chargé, tentatives trouvées:', hasAttempts);
+                // Ne plus cacher automatiquement l'historique
+                // setShowAttemptHistory(hasAttempts);
+              }}
+            />
+          </div>
 
           {/* Navigation */}
           {/* (Bouton déplacé à côté de Commencer niveau) */}

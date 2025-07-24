@@ -60,7 +60,7 @@ export default function ResultDisplay({
   };
 
   const getPerformanceMessage = () => {
-    if (results.accuracy >= 90) {
+    if (results.accuracy >= 95) {
       return {
         emoji: '🌟',
         title: 'Performance exceptionnelle !',
