@@ -7,12 +7,17 @@ import { useRouter } from 'next/navigation';
 import { programmeSupabaseService } from '../../../lib/programmeSupabaseService';
 import { ProgrammeData, SubPart } from '../../../lib/types/programme';
 
+// Force dynamic rendering pour éviter les erreurs SSR avec localStorage
+export const dynamic = 'force-dynamic';
+
 export default function ConclusionPage() {
   const router = useRouter();
   const [programmeData, setProgrammeData] = useState<ProgrammeData | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
+      if (typeof window === 'undefined') return;
+      
       const user = localStorage.getItem('user');
       if (!user) {
         router.push('/auth');

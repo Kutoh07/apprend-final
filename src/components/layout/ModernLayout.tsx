@@ -87,23 +87,29 @@ export function ModernLayout({
 
   // Gestion du mode sombre
   useEffect(() => {
-    const isDark = localStorage.getItem('theme') === 'dark' ||
-      (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    setIsDarkMode(isDark);
-    document.documentElement.classList.toggle('dark', isDark);
+    if (typeof window !== 'undefined') {
+      const isDark = localStorage.getItem('theme') === 'dark' ||
+        (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      setIsDarkMode(isDark);
+      document.documentElement.classList.toggle('dark', isDark);
+    }
   }, []);
 
   const toggleDarkMode = () => {
     const newDarkMode = !isDarkMode;
     setIsDarkMode(newDarkMode);
-    localStorage.setItem('theme', newDarkMode ? 'dark' : 'light');
-    document.documentElement.classList.toggle('dark', newDarkMode);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('theme', newDarkMode ? 'dark' : 'light');
+      document.documentElement.classList.toggle('dark', newDarkMode);
+    }
   };
 
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
-      localStorage.removeItem('user');
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('user');
+      }
       router.push('/auth/login');
     } catch (error) {
       console.error('Erreur lors de la déconnexion:', error);

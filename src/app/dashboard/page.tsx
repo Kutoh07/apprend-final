@@ -1,6 +1,9 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+
+// Force dynamic rendering pour éviter les erreurs SSR avec localStorage
+export const dynamic = 'force-dynamic';
 import { Target, TrendingUp, Award, BookOpen, Calendar, Users, User, Sparkles } from 'lucide-react';
 import { UserProfileService } from '../../lib/userProfileService';
 import { programmeSupabaseService } from '../../lib/programmeSupabaseService';
@@ -125,7 +128,7 @@ const createJourneyStages = (programmeData: ProgrammeData | null, renaissanceSta
       icon: <User className="w-8 h-8 text-white" />,
       status: 'completed' as const,
       progress: 100,
-      completedDate: localStorage.getItem('personalisationCompletedAt') || new Date().toLocaleDateString('fr-FR'),
+      completedDate: (typeof window !== 'undefined' && localStorage.getItem('personalisationCompletedAt')) || new Date().toLocaleDateString('fr-FR'),
       modules: [
         { id: 'profile', name: 'Profil personnel', completed: true, progress: 100 },
         { id: 'goals', name: 'Objectifs', completed: true, progress: 100 },
