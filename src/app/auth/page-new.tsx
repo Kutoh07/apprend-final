@@ -209,7 +209,7 @@ export default function AuthPage() {
                 loadingText="Connexion Google..."
                 leftIcon={
                   <Image
-                    src="/public/icons/google.svg"
+                    src="/images/icons/google.svg"
                     alt="Google"
                     width={20}
                     height={20}

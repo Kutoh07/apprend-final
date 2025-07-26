@@ -12,6 +12,11 @@ import {
   getProfessionLabelFromValue,
   getCountryLabelFromValue,
 } from '../../lib/dataMappings';
+import { ModernLayout } from '@/components/layout/ModernLayout';
+import { ModernCard, CardHeader, CardContent } from '@/components/ui/ModernCard';
+import { ModernButton, ActionButton } from '@/components/ui/ModernButton';
+import { ModernProgress } from '@/components/ui/ModernProgress';
+import { User, Calendar, Briefcase, Globe, Check, ArrowLeft, ArrowRight, AlertCircle } from 'lucide-react';
 
 export interface UserData {
   name: string;
@@ -67,18 +72,22 @@ interface PageContainerProps {
 }
 
 const PageContainer: React.FC<PageContainerProps> = ({ children, title = "PERSONALISATION" }) => (
-  <div className="min-h-screen bg-gradient-to-br from-sky-100 to-sky-200">
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full p-8">
-        <div className="text-center mb-12">
-          <h1 className="text-6xl font-bold text-sky-400 mb-8 tracking-wide">
-            {title}
-          </h1>
-        </div>
-        {children}
-      </div>
+  <ModernLayout
+    title="Personnalisation"
+    className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50"
+  >
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      <ModernCard variant="glass" className="animate-scale-in">
+        <CardHeader
+          title={title}
+          className="text-center"
+        />
+        <CardContent spacing="lg">
+          {children}
+        </CardContent>
+      </ModernCard>
     </div>
-  </div>
+  </ModernLayout>
 );
 
 interface NavigationButtonsProps {
@@ -98,22 +107,27 @@ const NavigationButtons: React.FC<NavigationButtonsProps> = ({
   disabled = false,
   loading = false
 }) => (
-  <div className="flex justify-between items-center mt-16">
-    <button 
+  <div className="flex justify-between items-center mt-12 gap-4">
+    <ModernButton
+      variant="outline"
+      size="lg"
       onClick={onBack}
       disabled={disabled}
-      className="bg-sky-300 hover:bg-sky-400 text-white font-semibold py-4 px-12 rounded-full text-lg transition-all duration-200 transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+      leftIcon={<ArrowLeft className="w-5 h-5" />}
     >
       {backLabel}
-    </button>
+    </ModernButton>
     
-    <button 
+    <ActionButton
+      size="lg"
       onClick={onNext}
       disabled={disabled}
-      className="bg-sky-400 hover:bg-sky-500 text-white font-semibold py-4 px-12 rounded-full text-lg transition-all duration-200 transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+      isLoading={loading}
+      loadingText="Chargement..."
+      rightIcon={<ArrowRight className="w-5 h-5" />}
     >
-      {loading ? 'Chargement...' : nextLabel}
-    </button>
+      {nextLabel}
+    </ActionButton>
   </div>
 );
 
@@ -124,22 +138,33 @@ interface StatusMessageProps {
 
 const StatusMessage: React.FC<StatusMessageProps> = ({ type, message }) => {
   const configs = {
-    loading: { bg: 'bg-blue-50', text: 'text-blue-700', icon: '⏳' },
-    success: { bg: 'bg-green-50', text: 'text-green-700', icon: '✅' },
-    error: { bg: 'bg-orange-50', text: 'text-orange-700', icon: '⚠️' }
+    loading: { 
+      bg: 'bg-primary-50', 
+      text: 'text-primary-700', 
+      border: 'border-primary-200',
+      icon: <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-500" />
+    },
+    success: { 
+      bg: 'bg-success-50', 
+      text: 'text-success-700', 
+      border: 'border-success-200',
+      icon: <Check className="w-5 h-5 text-success-600" />
+    },
+    error: { 
+      bg: 'bg-error-50', 
+      text: 'text-error-700', 
+      border: 'border-error-200',
+      icon: <AlertCircle className="w-5 h-5 text-error-600" />
+    }
   };
   
   const config = configs[type];
   
   return (
-    <div className={`mt-6 p-4 ${config.bg} rounded-lg`}>
-      <div className="flex items-center space-x-2">
-        {type === 'loading' ? (
-          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500" />
-        ) : (
-          <span>{config.icon}</span>
-        )}
-        <span className={config.text}>{message}</span>
+    <div className={`mt-6 p-4 ${config.bg} border ${config.border} rounded-xl`}>
+      <div className="flex items-center space-x-3">
+        {config.icon}
+        <span className={`${config.text} text-sm font-medium`}>{message}</span>
       </div>
     </div>
   );
@@ -150,18 +175,41 @@ interface RocketAnimationProps {
 }
 
 const RocketAnimation: React.FC<RocketAnimationProps> = ({ animated = false }) => (
-  <div className="flex-1 flex justify-center">
+  <div className="flex justify-center">
     <div className="relative">
-      <div className="w-16 h-32 bg-gradient-to-t from-red-400 via-orange-400 to-yellow-400 rounded-t-full relative mx-auto">
-        <div className="w-12 h-24 bg-gradient-to-t from-gray-300 to-gray-100 rounded-t-full absolute top-8 left-2" />
-        <div className="w-6 h-6 bg-blue-200 rounded-full absolute top-12 left-5 border-2 border-gray-400" />
-        <div className="w-6 h-8 bg-red-500 absolute bottom-0 -left-2 transform -skew-x-12" />
-        <div className="w-6 h-8 bg-red-500 absolute bottom-0 -right-2 transform skew-x-12" />
-      </div>
+      {/* Animated background glow */}
       {animated && (
-        <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2">
-          <div className="w-8 h-6 bg-gradient-to-t from-red-500 to-orange-400 rounded-b-full animate-pulse" />
-        </div>
+        <div className="absolute inset-0 bg-gradient-to-t from-orange-400 via-red-400 to-yellow-400 rounded-full blur-xl opacity-60 animate-pulse scale-150" />
+      )}
+      
+      {/* Rocket body */}
+      <div className={`relative w-20 h-40 bg-gradient-to-t from-gray-300 via-gray-100 to-white rounded-t-full shadow-xl transform ${animated ? 'animate-bounce' : ''}`}>
+        {/* Main body decoration */}
+        <div className="w-16 h-32 bg-gradient-to-t from-primary-400 to-primary-200 rounded-t-full absolute top-2 left-2" />
+        
+        {/* Window */}
+        <div className="w-8 h-8 bg-gradient-to-br from-blue-200 to-blue-400 rounded-full absolute top-8 left-6 border-2 border-gray-300" />
+        
+        {/* Side fins */}
+        <div className="w-6 h-12 bg-gradient-to-br from-red-500 to-red-600 absolute bottom-0 -left-3 transform -skew-x-12 rounded-b-lg shadow-lg" />
+        <div className="w-6 h-12 bg-gradient-to-br from-red-500 to-red-600 absolute bottom-0 -right-3 transform skew-x-12 rounded-b-lg shadow-lg" />
+        
+        {/* Engine fire */}
+        {animated && (
+          <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2">
+            <div className="w-10 h-8 bg-gradient-to-t from-red-600 via-orange-500 to-yellow-400 rounded-b-full animate-pulse opacity-80" />
+            <div className="w-6 h-4 bg-gradient-to-t from-yellow-400 to-orange-300 rounded-b-full absolute bottom-0 left-1/2 transform -translate-x-1/2 animate-pulse" />
+          </div>
+        )}
+      </div>
+      
+      {/* Floating particles */}
+      {animated && (
+        <>
+          <div className="absolute top-10 left-8 w-2 h-2 bg-yellow-400 rounded-full animate-ping opacity-75" />
+          <div className="absolute top-16 right-6 w-1 h-1 bg-orange-400 rounded-full animate-ping opacity-60" style={{ animationDelay: '0.5s' }} />
+          <div className="absolute top-20 left-12 w-1 h-1 bg-red-400 rounded-full animate-ping opacity-80" style={{ animationDelay: '1s' }} />
+        </>
       )}
     </div>
   </div>
@@ -188,17 +236,78 @@ const DataSummary: React.FC<DataSummaryProps> = ({ userData }) => {
   };
 
   return (
-    <div className="mt-12 p-6 bg-sky-50 rounded-2xl">
-      <h3 className="text-lg font-semibold text-sky-700 mb-4">Récapitulatif de tes informations :</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
-        <div><strong>Nom :</strong> {userData.name}</div>
-        <div><strong>Année de naissance :</strong> {userData.birthYear}</div>
-        <div><strong>Profession :</strong> {getProfessionLabel(userData.profession)}</div>
-        {userData.gender && <div><strong>Genre :</strong> {getGenderLabel(userData.gender)}</div>}
-        {userData.phone && <div><strong>Téléphone :</strong> {userData.phone}</div>}
-        {userData.country && <div><strong>Pays :</strong> {getCountryLabel(userData.country)}</div>}
-      </div>
-    </div>
+    <ModernCard variant="gradient" className="mt-8">
+      <CardHeader title="Récapitulatif de tes informations" />
+      <CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
+              <User className="w-5 h-5 text-primary-600" />
+            </div>
+            <div>
+              <span className="text-sm text-gray-500">Nom</span>
+              <p className="font-semibold text-gray-900">{userData.name}</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-secondary-100 rounded-full flex items-center justify-center">
+              <Calendar className="w-5 h-5 text-secondary-600" />
+            </div>
+            <div>
+              <span className="text-sm text-gray-500">Année de naissance</span>
+              <p className="font-semibold text-gray-900">{userData.birthYear}</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-accent-100 rounded-full flex items-center justify-center">
+              <Briefcase className="w-5 h-5 text-accent-600" />
+            </div>
+            <div>
+              <span className="text-sm text-gray-500">Profession</span>
+              <p className="font-semibold text-gray-900">{getProfessionLabel(userData.profession)}</p>
+            </div>
+          </div>
+          
+          {userData.gender && (
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
+                <User className="w-5 h-5 text-primary-600" />
+              </div>
+              <div>
+                <span className="text-sm text-gray-500">Genre</span>
+                <p className="font-semibold text-gray-900">{getGenderLabel(userData.gender)}</p>
+              </div>
+            </div>
+          )}
+          
+          {userData.phone && (
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-secondary-100 rounded-full flex items-center justify-center">
+                <span className="text-secondary-600 text-sm">📱</span>
+              </div>
+              <div>
+                <span className="text-sm text-gray-500">Téléphone</span>
+                <p className="font-semibold text-gray-900">{userData.phone}</p>
+              </div>
+            </div>
+          )}
+          
+          {userData.country && (
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-accent-100 rounded-full flex items-center justify-center">
+                <Globe className="w-5 h-5 text-accent-600" />
+              </div>
+              <div>
+                <span className="text-sm text-gray-500">Pays</span>
+                <p className="font-semibold text-gray-900">{getCountryLabel(userData.country)}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </ModernCard>
   );
 };
 
@@ -216,23 +325,39 @@ const WelcomeStep: React.FC<StepProps> = ({ onNext, onBack }) => {
   const handleBack = () => router.push('/dashboard');
   
   return (
-    <PageContainer>
-      <div className="flex items-center justify-between">
-        <div className="flex-1 pr-8">
-          <p className="text-xl text-gray-700 leading-relaxed">
-            Ton programme de renaissance est sur mesure. Pour cela, il est essentiel que nous 
-            apprenions à mieux nous connaître.
-          </p>
+    <PageContainer title="Bienvenue dans ton espace personnalisation">
+      <div className="grid md:grid-cols-2 gap-12 items-center">
+        <div className="space-y-6">
+          <div className="space-y-4">
+            <h2 className="text-2xl font-bold text-gray-900">
+              Créons ton programme sur mesure
+            </h2>
+            <p className="text-lg text-gray-600 leading-relaxed">
+              Ton programme de renaissance est unique. Pour te proposer le parcours le plus adapté, 
+              nous avons besoin d'apprendre à mieux te connaître.
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-4 p-4 bg-primary-50 rounded-xl border border-primary-200">
+            <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
+              <User className="w-5 h-5 text-primary-600" />
+            </div>
+            <div>
+              <p className="font-medium text-primary-900">Informations personnalisées</p>
+              <p className="text-sm text-primary-700">Quelques questions pour adapter ton parcours</p>
+            </div>
+          </div>
         </div>
         
-        <div className="flex-1 flex justify-center">
+        <div className="flex justify-center">
           <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary-400 to-secondary-400 rounded-2xl blur-2xl opacity-20 animate-pulse" />
             <Image
               src="/images/Personalisation.png"
               alt="Illustration de personnalisation"
               width={400}
               height={300}
-              className="rounded-2xl shadow-lg object-contain"
+              className="relative rounded-2xl shadow-xl object-contain hover-lift"
               priority
             />
           </div>
@@ -242,7 +367,8 @@ const WelcomeStep: React.FC<StepProps> = ({ onNext, onBack }) => {
       <NavigationButtons 
         onBack={handleBack}
         onNext={onNext}
-        nextLabel="Commencer"
+        backLabel="Retour au dashboard"
+        nextLabel="Commencer la personnalisation"
       />
     </PageContainer>
   );
@@ -287,8 +413,9 @@ const PersonalInfoStep: React.FC<StepProps & { userData: UserData; onUpdateData:
     <PageContainer>
       <div className="max-w-2xl mx-auto space-y-8">
         {/* Question 1: Nom */}
-        <div>
-          <label className="block text-xl text-gray-700 mb-4">
+        <div className="space-y-3">
+          <label className="flex items-center text-lg font-medium text-gray-700 gap-2">
+            <User className="w-5 h-5 text-primary-600" />
             Comment aimerais-tu que nous t'appelions ?
           </label>
           <input
@@ -297,26 +424,26 @@ const PersonalInfoStep: React.FC<StepProps & { userData: UserData; onUpdateData:
             onChange={(e) => handleInputChange('name', e.target.value)}
             placeholder="Votre prénom"
             autoComplete="given-name"
-            className={`w-full p-4 text-lg border-2 rounded-2xl focus:outline-none focus:ring-2 focus:ring-sky-400 transition-all ${
-              errors.name ? 'border-red-500' : 'border-sky-300'
-            }`}
+            className={`input-base ${errors.name ? 'border-error-500 focus:ring-error-500' : ''}`}
           />
           {errors.name && (
-            <p className="text-red-500 text-sm mt-2">{errors.name}</p>
+            <p className="flex items-center text-error-600 text-sm gap-2">
+              <AlertCircle className="w-4 h-4" />
+              {errors.name}
+            </p>
           )}
         </div>
 
         {/* Question 2: Année de naissance */}
-        <div>
-          <label className="block text-xl text-gray-700 mb-4">
+        <div className="space-y-3">
+          <label className="flex items-center text-lg font-medium text-gray-700 gap-2">
+            <Calendar className="w-5 h-5 text-primary-600" />
             Quelle est ton année de naissance ?
           </label>
           <select
             value={safeUserData.birthYear}
             onChange={(e) => handleInputChange('birthYear', parseInt(e.target.value))}
-            className={`w-full p-4 text-lg border-2 rounded-2xl focus:outline-none focus:ring-2 focus:ring-sky-400 transition-all bg-white ${
-              errors.birthYear ? 'border-red-500' : 'border-sky-300'
-            }`}
+            className={`input-base ${errors.birthYear ? 'border-error-500 focus:ring-error-500' : ''}`}
           >
             {birthYearOptions.map((option) => (
               <option key={option.value} value={option.value}>
@@ -325,21 +452,23 @@ const PersonalInfoStep: React.FC<StepProps & { userData: UserData; onUpdateData:
             ))}
           </select>
           {errors.birthYear && (
-            <p className="text-red-500 text-sm mt-2">{errors.birthYear}</p>
+            <p className="flex items-center text-error-600 text-sm gap-2">
+              <AlertCircle className="w-4 h-4" />
+              {errors.birthYear}
+            </p>
           )}
         </div>
 
         {/* Question 3: Profession */}
-        <div>
-          <label className="block text-xl text-gray-700 mb-4">
+        <div className="space-y-3">
+          <label className="flex items-center text-lg font-medium text-gray-700 gap-2">
+            <Briefcase className="w-5 h-5 text-primary-600" />
             Quelle est ton activité principale ?
           </label>
           <select
             value={safeUserData.profession}
             onChange={(e) => handleInputChange('profession', e.target.value)}
-            className={`w-full p-4 text-lg border-2 rounded-2xl focus:outline-none focus:ring-2 focus:ring-sky-400 transition-all bg-white ${
-              errors.profession ? 'border-red-500' : 'border-sky-300'
-            }`}
+            className={`input-base ${errors.profession ? 'border-error-500 focus:ring-error-500' : ''}`}
           >
             {CSP_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -348,25 +477,35 @@ const PersonalInfoStep: React.FC<StepProps & { userData: UserData; onUpdateData:
             ))}
           </select>
           {errors.profession && (
-            <p className="text-red-500 text-sm mt-2">{errors.profession}</p>
+            <p className="flex items-center text-error-600 text-sm gap-2">
+              <AlertCircle className="w-4 h-4" />
+              {errors.profession}
+            </p>
           )}
         </div>
 
-        {/* Séparateur */}
-        <div className="border-t border-gray-200 my-8" />
-        <p className="text-lg text-gray-600 text-center italic">
-          Informations optionnelles (pour mieux te connaître)
-        </p>
+        {/* Séparateur moderne */}
+        <div className="relative my-8">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-200"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-4 bg-white text-gray-500 font-medium">
+              Informations optionnelles (pour mieux te connaître)
+            </span>
+          </div>
+        </div>
 
         {/* Question optionnelle: Genre */}
-        <div>
-          <label className="block text-xl text-gray-700 mb-4">
-            Genre (optionnel)
+        <div className="space-y-3">
+          <label className="flex items-center text-lg font-medium text-gray-700 gap-2">
+            <User className="w-5 h-5 text-secondary-600" />
+            Genre <span className="text-sm text-gray-500">(optionnel)</span>
           </label>
           <select
             value={safeUserData.gender}
             onChange={(e) => handleInputChange('gender', e.target.value)}
-            className="w-full p-4 text-lg border-2 border-sky-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-sky-400 transition-all bg-white"
+            className="input-base border-gray-200 focus:border-secondary-500 focus:ring-secondary-500"
           >
             {GENDER_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -377,28 +516,29 @@ const PersonalInfoStep: React.FC<StepProps & { userData: UserData; onUpdateData:
         </div>
 
         {/* Question optionnelle: Téléphone */}
-        <div>
-          <label className="block text-xl text-gray-700 mb-4">
-            Numéro de téléphone (optionnel)
+        <div className="space-y-3">
+          <label className="block text-lg font-medium text-gray-700">
+            Numéro de téléphone <span className="text-sm text-gray-500">(optionnel)</span>
           </label>
           <input
             type="tel"
             value={safeUserData.phone}
             onChange={(e) => handleInputChange('phone', e.target.value)}
             placeholder="06 12 34 56 78"
-            className="w-full p-4 text-lg border-2 border-sky-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-sky-400 transition-all"
+            className="input-base border-gray-200 focus:border-secondary-500 focus:ring-secondary-500"
           />
         </div>
 
         {/* Question optionnelle: Pays */}
-        <div>
-          <label className="block text-xl text-gray-700 mb-4">
-            Pays de résidence (optionnel)
+        <div className="space-y-3">
+          <label className="flex items-center text-lg font-medium text-gray-700 gap-2">
+            <Globe className="w-5 h-5 text-secondary-600" />
+            Pays de résidence <span className="text-sm text-gray-500">(optionnel)</span>
           </label>
           <select
             value={safeUserData.country}
             onChange={(e) => handleInputChange('country', e.target.value)}
-            className="w-full p-4 text-lg border-2 border-sky-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-sky-400 transition-all bg-white"
+            className="input-base border-gray-200 focus:border-secondary-500 focus:ring-secondary-500"
           >
             {COUNTRY_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -488,17 +628,21 @@ const SuccessStep: React.FC<StepProps & { userData: UserData }> = ({ userData, o
   };
 
   return (
-    <PageContainer>
-      <div className="flex items-center justify-between">
-        <div className="flex-1 pr-8">
-          <p className="text-xl text-gray-700 leading-relaxed mb-6">
-            Enchanté <strong className="text-sky-600">{userData.name}</strong> ! L'équipe APPREND est 
-            heureuse de t'accueillir à bord de sa fusée à destination de la femme 2.0 que tu aspires à 
-            devenir.
-          </p>
-          <p className="text-xl text-gray-700 leading-relaxed">
-            Maintenant tu peux renseigner tes résultats de la méthode "ACCEPTER"
-          </p>
+    <PageContainer title="Profil configuré avec succès !">
+      <div className="grid md:grid-cols-2 gap-12 items-center">
+        <div className="space-y-6">
+          <div className="space-y-4">
+            <h2 className="text-2xl font-bold text-primary-600">
+              Enchanté <span className="text-gradient-primary">{userData.name}</span> !
+            </h2>
+            <p className="text-lg text-gray-600 leading-relaxed">
+              L'équipe APPREND+ est heureuse de t'accueillir à bord de sa fusée à destination 
+              de la femme 2.0 que tu aspires à devenir.
+            </p>
+            <p className="text-lg text-gray-600 leading-relaxed">
+              Maintenant tu peux renseigner tes résultats de la méthode "ACCEPTER"
+            </p>
+          </div>
           
           {formState.saving && (
             <StatusMessage 
@@ -522,7 +666,9 @@ const SuccessStep: React.FC<StepProps & { userData: UserData }> = ({ userData, o
           )}
         </div>
 
-        <RocketAnimation animated={formState.saving} />
+        <div className="flex justify-center">
+          <RocketAnimation animated={formState.saving} />
+        </div>
       </div>
 
       <DataSummary userData={userData} />
@@ -532,7 +678,7 @@ const SuccessStep: React.FC<StepProps & { userData: UserData }> = ({ userData, o
         onNext={handleContinue}
         disabled={formState.saving || formState.saved}
         loading={formState.saving}
-        nextLabel={formState.saving ? 'Sauvegarde...' : formState.saved ? 'Redirection...' : 'Continuer'}
+        nextLabel={formState.saving ? 'Sauvegarde...' : formState.saved ? 'Redirection...' : 'Continuer vers le dashboard'}
       />
     </PageContainer>
   );
@@ -593,12 +739,17 @@ export default function PersonalisationPage() {
   const renderStep = () => {
     if (loading) {
       return (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-500 mx-auto mb-4"></div>
-            <p className="text-gray-600">Chargement de votre profil...</p>
+        <ModernLayout title="Chargement" className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50">
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <ModernCard variant="glass" className="text-center">
+              <CardContent spacing="lg">
+                <ModernProgress value={0} animated className="mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Chargement de votre profil</h3>
+                <p className="text-gray-600">Préparation de votre espace personnalisation...</p>
+              </CardContent>
+            </ModernCard>
           </div>
-        </div>
+        </ModernLayout>
       );
     }
 
@@ -632,9 +783,5 @@ export default function PersonalisationPage() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-sky-100 to-sky-200">
-      {renderStep()}
-    </div>
-  );
+  return renderStep();
 }
