@@ -112,11 +112,15 @@ export default function HomePage() {
                     <span className="text-gradient-secondary">durable</span>
                   </h2>
                   
-                  <p className="text-body text-xl">
-                    Transforme ta vie avec notre programme scientifiquement conçu. 
-                    Développe ta confiance, ta discipline et ton potentiel pour devenir 
-                    la femme qui atteint ses objectifs les plus ambitieux.
-                  </p>
+                  <blockquote className="relative bg-gradient-to-r from-primary-50 to-secondary-50 border-l-4 border-primary-500 rounded-r-xl p-6 my-8">
+                    <div className="absolute top-2 left-2 text-primary-300 text-4xl font-serif">"</div>
+                    <p className="text-body text-xl italic text-gray-700 pl-6">
+                      Transforme ta vie avec notre programme scientifiquement conçu. 
+                      Développe ta confiance, ta discipline et ton potentiel pour devenir 
+                      la femme qui atteint ses objectifs les plus ambitieux.
+                    </p>
+                    <div className="absolute bottom-2 right-4 text-primary-300 text-4xl font-serif">"</div>
+                  </blockquote>
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-4">
@@ -126,7 +130,7 @@ export default function HomePage() {
                     className="animate-scale-in"
                     style={{ animationDelay: '0.2s' }}
                   >
-                    Commencer ma transformation
+                    Commencer
                   </ActionButton>
                   
                   <ModernButton
@@ -136,7 +140,7 @@ export default function HomePage() {
                     className="animate-scale-in"
                     style={{ animationDelay: '0.4s' }}
                   >
-                    En savoir plus
+                    En savoir +
                   </ModernButton>
                 </div>
 
