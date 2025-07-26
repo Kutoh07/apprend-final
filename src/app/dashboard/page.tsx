@@ -57,7 +57,7 @@ const createSkills = (userProgress?: UserProgress): Skill[] => {
 
 const createLevels = (averageProgress: number, programmeData: ProgrammeData | null, renaissanceStats: RenaissanceStats | null): Level[] => [
   {
-    name: "PERSONNALISÉ",
+    name: "PERSONNALISE",
     color: "from-pink-400 to-pink-600",
     icon: Target,
     progress: averageProgress >= 20 ? 100 : (averageProgress / 20) * 100,
@@ -157,7 +157,7 @@ export default function DashboardPage() {
 
   const handleLevelClick = (level: Level) => {
     const routeMap: Record<string, string> = {
-      "PERSONNALISÉ": '/personalisation',
+      "PERSONNALISE": '/personalisation',
       "PERSONALISE": '/personalisation',
       "PROGRAMME": '/programme',
       "RENAISSANCE": '/renaissance'
@@ -240,13 +240,49 @@ export default function DashboardPage() {
   const levels = createLevels(averageProgress, programmeData, renaissanceStats);
   const progressInfo = getProgressMessage(averageProgress);
   
+  // ✅ AJOUT: Logique pour déterminer le texte du bouton principal
+  const getMainActionButton = () => {
+    const personalisationProgress = averageProgress >= 20 ? 100 : (averageProgress / 20) * 100;
+    const programmeProgress = programmeData ? programmeData.overallProgress : 0;
+    const renaissanceProgress = renaissanceStats ? renaissanceStats.totalProgress : 0;
+
+    // Vérifier où on en est dans le parcours
+    if (personalisationProgress < 100) {
+      return {
+        title: "Débute ta personnalisation",
+        subtitle: `${Math.round(personalisationProgress)}% complété`,
+        route: '/personalisation'
+      };
+    } else if (programmeProgress < 100) {
+      return {
+        title: "Continue ton programme", 
+        subtitle: `${programmeProgress}% complété`,
+        route: '/programme'
+      };
+    } else if (renaissanceProgress < 100) {
+      return {
+        title: "Continue ta renaissance",
+        subtitle: `${renaissanceProgress}% complété`,
+        route: '/renaissance'
+      };
+    } else {
+      return {
+        title: "Parcours terminé !",
+        subtitle: "Félicitations pour votre réussite",
+        route: '/dashboard'
+      };
+    }
+  };
+
+  const mainAction = getMainActionButton();
+  
   const actionCards: ActionCard[] = [
     {
-      title: "Continuer le programme",
-      subtitle: programmeData ? `${programmeData.overallProgress}% complété` : 'Commencer le parcours',
+      title: mainAction.title,
+      subtitle: mainAction.subtitle,
       icon: BookOpen,
       color: "bg-teal-500 hover:bg-teal-600",
-      onClick: () => handleNavigate('/programme')
+      onClick: () => handleNavigate(mainAction.route)
     },
     {
       title: "Analyser mes progrès",
@@ -276,39 +312,6 @@ export default function DashboardPage() {
         onLogout={handleLogout} 
       />
 
-      {/* Niveaux de progression */}
-      <div className="max-w-6xl mx-auto mb-8">
-        <div className="bg-white rounded-2xl shadow-lg p-8">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Ton Parcours</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {levels.map((level) => (
-              <LevelCard key={level.name} level={level} onLevelClick={handleLevelClick} />
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Compétences et progression */}
-      <div className="max-w-6xl mx-auto mb-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="bg-white rounded-2xl shadow-lg p-8">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Tes Compétences</h2>
-            <div className="space-y-8">
-              {skills.map((skill) => (
-                <SkillBar key={skill.name} skill={skill} />
-              ))}
-            </div>
-          </div>
-          
-          <ProgressDisplay 
-            user={user} 
-            averageProgress={averageProgress} 
-            progressInfo={progressInfo} 
-            programmeData={programmeData} 
-          />
-        </div>
-      </div>
-
       {/* Actions rapides */}
       <div className="max-w-6xl mx-auto mb-8">
         <div className="bg-white rounded-2xl shadow-lg p-8">
@@ -321,13 +324,36 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Niveaux de progression et Compétences - Côte à côte */}
+      <div className="max-w-6xl mx-auto mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Niveaux de progression - Colonne gauche */}
+          <div className="bg-white rounded-2xl shadow-lg p-8">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Ton Parcours</h2>
+            <div className="space-y-6">
+              {levels.map((level) => (
+                <LevelCard key={level.name} level={level} onLevelClick={handleLevelClick} />
+              ))}
+            </div>
+          </div>
+
+          {/* Compétences et progression - Colonne droite */}
+          <ProgressDisplay 
+            user={user} 
+            averageProgress={averageProgress} 
+            progressInfo={progressInfo} 
+            programmeData={programmeData} 
+          />
+        </div>
+      </div>
+
       {/* Debug info */}
       {programmeData && (
         <div className="max-w-6xl mx-auto">
           <div className="bg-gray-100 rounded-2xl p-6 text-center">
-            <h3 className="text-lg font-bold text-gray-700 mb-4">📊 Données synchronisées avec Supabase</h3>
+            <h3 className="text-lg font-bold text-gray-700 mb-4">📊 Données synchronisées</h3>
             <p className="text-sm text-gray-600">
-              Programme chargé depuis la base de données • Dernière mise à jour : {programmeData.lastUpdated.toLocaleString('fr-FR')}
+              Parcours chargé depuis la base de données • Dernière mise à jour : {programmeData.lastUpdated.toLocaleString('fr-FR')}
             </p>
           </div>
         </div>
