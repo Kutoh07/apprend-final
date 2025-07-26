@@ -164,14 +164,16 @@ export default function AuthPage() {
             {/* Logo et titre */}
             <div className="space-y-4">
               <div className="w-24 h-24 mx-auto mb-6 relative">
-                <Image
-                  src="/images/Logo_Apprend.png"
-                  alt="Apprend+ Logo"
-                  width={96}
-                  height={96}
-                  className="w-full h-full object-contain hover-lift"
-                  priority
-                />
+                <div className="w-full h-full rounded-full bg-gradient-to-br from-primary-100 to-primary-200 shadow-lg flex items-center justify-center p-3 hover-lift">
+                  <Image
+                    src="/images/Logo_Apprend.png"
+                    alt="Apprend+ Logo"
+                    width={64}
+                    height={64}
+                    className="w-full h-full object-contain"
+                    priority
+                  />
+                </div>
               </div>
               
               <h1 className="text-3xl font-bold text-gradient-primary">
@@ -209,7 +211,7 @@ export default function AuthPage() {
                 loadingText="Connexion Google..."
                 leftIcon={
                   <Image
-                    src="/public/icons/google.svg"
+                    src="/images/icons/google.svg"
                     alt="Google"
                     width={20}
                     height={20}

@@ -126,7 +126,7 @@ export default function HomePage() {
                     className="animate-scale-in"
                     style={{ animationDelay: '0.2s' }}
                   >
-                    Commencer mon transformation
+                    Commencer ma transformation
                   </ActionButton>
                   
                   <ModernButton

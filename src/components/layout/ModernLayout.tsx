@@ -133,7 +133,7 @@ export function ModernLayout({
                   </div>
                   <div className="hidden sm:block">
                     <h1 className="text-xl font-bold text-gradient-primary">Apprend+</h1>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Excellence mentale</p>
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400 whitespace-nowrap">Excellence mentale</p>
                   </div>
                 </button>
               </div>

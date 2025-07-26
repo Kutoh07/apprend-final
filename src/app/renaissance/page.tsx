@@ -10,6 +10,7 @@ import { programmeSupabaseService } from '../../lib/programmeSupabaseService';
 import { renaissanceService } from '../../lib/services/renaissanceService';
 import type { RenaissanceStats } from '@/lib/types/renaissance';
 import { Home } from 'lucide-react';
+import { ModernLayout } from '@/components/layout/ModernLayout';
 
 // Composant pour les utilisateurs non éligibles
 const NotEligibleMessage = () => {
@@ -49,6 +50,39 @@ const NotEligibleMessage = () => {
 // Composant d'accueil Renaissance
 const RenaissanceWelcome = ({ stats }: { stats: RenaissanceStats | null }) => {
   const router = useRouter();
+  const [userAxes, setUserAxes] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (stats?.totalAxesSelected && stats.totalAxesSelected > 0) {
+      loadUserAxes();
+    }
+  }, [stats]);
+
+  const loadUserAxes = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+
+      const { data: axesData } = await supabase
+        .from('user_axe_selections')
+        .select(`
+          axe_id,
+          axe_name,
+          overall_progress,
+          discovery_completed,
+          level1_completed,
+          level2_completed,
+          level3_completed,
+          last_accessed_at
+        `)
+        .eq('user_id', session.user.id)
+        .order('overall_progress', { ascending: false });
+
+      setUserAxes(axesData || []);
+    } catch (error) {
+      console.error('Erreur lors du chargement des axes:', error);
+    }
+  };
 
   // Fonction pour naviguer vers l'axe actif ou le premier axe sélectionné
   const navigateToActiveAxe = async () => {
@@ -103,7 +137,7 @@ const RenaissanceWelcome = ({ stats }: { stats: RenaissanceStats | null }) => {
 
   return (
     <div className="max-w-6xl mx-auto p-4">
-      {/* Navigation et header */}
+      {/* Navigation et header 
       <div className="bg-white rounded-2xl shadow-lg p-4 mb-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -125,9 +159,9 @@ const RenaissanceWelcome = ({ stats }: { stats: RenaissanceStats | null }) => {
             <span>Retour Dashboard</span>
           </button>
         </div>
-      </div>
+      </div> */}
 
-      {/* Header avec papillon */}
+      {/* Header avec papillon 
       <div className="text-center mb-12">
         <div className="mb-8">
           <div className="text-8xl mb-4">🦋</div>
@@ -147,7 +181,7 @@ const RenaissanceWelcome = ({ stats }: { stats: RenaissanceStats | null }) => {
             </blockquote>
             </div>
         </div>
-      </div>
+      </div>*/}
 
       {/* Statistiques si disponibles */}
       {stats && (
@@ -167,6 +201,87 @@ const RenaissanceWelcome = ({ stats }: { stats: RenaissanceStats | null }) => {
           <div className="bg-white rounded-2xl shadow-lg p-6 text-center">
             <div className="text-3xl font-bold text-orange-600">{Math.round(stats.averageAccuracy)}%</div>
             <div className="text-sm text-gray-600">Précision moyenne</div>
+          </div>
+        </div>
+      )}
+
+      {/* Liste des axes sélectionnés */}
+      {userAxes.length > 0 && (
+        <div className="mb-8">
+          <h3 className="text-2xl font-bold text-gray-800 mb-6 text-center">Mes axes de Renaissance</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {userAxes.map((axe) => (
+              <div 
+                key={axe.axe_id} 
+                className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-shadow cursor-pointer"
+                onClick={() => router.push(`/renaissance/${axe.axe_id}`)}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-semibold text-lg text-gray-800 truncate">{axe.axe_name}</h4>
+                  <div className={`w-3 h-3 rounded-full ${
+                    axe.overall_progress === 100 ? 'bg-green-500' : 
+                    axe.overall_progress > 0 ? 'bg-blue-500' : 'bg-gray-300'
+                  }`} />
+                </div>
+                
+                {/* Barre de progression */}
+                <div className="mb-4">
+                  <div className="flex justify-between text-sm text-gray-600 mb-2">
+                    <span>Progression</span>
+                    <span>{axe.overall_progress || 0}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-3">
+                    <div 
+                      className="h-3 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-300"
+                      style={{ width: `${axe.overall_progress || 0}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Étapes complétées */}
+                <div className="grid grid-cols-4 gap-2 mb-4">
+                  <div className={`text-center p-2 rounded-lg text-xs ${
+                    axe.discovery_completed ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                  }`}>
+                    <div className="font-semibold">Découverte</div>
+                    <div>{axe.discovery_completed ? '✓' : '○'}</div>
+                  </div>
+                  <div className={`text-center p-2 rounded-lg text-xs ${
+                    axe.level1_completed ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                  }`}>
+                    <div className="font-semibold">Niveau 1</div>
+                    <div>{axe.level1_completed ? '✓' : '○'}</div>
+                  </div>
+                  <div className={`text-center p-2 rounded-lg text-xs ${
+                    axe.level2_completed ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                  }`}>
+                    <div className="font-semibold">Niveau 2</div>
+                    <div>{axe.level2_completed ? '✓' : '○'}</div>
+                  </div>
+                  <div className={`text-center p-2 rounded-lg text-xs ${
+                    axe.level3_completed ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                  }`}>
+                    <div className="font-semibold">Niveau 3</div>
+                    <div>{axe.level3_completed ? '✓' : '○'}</div>
+                  </div>
+                </div>
+
+                {/* Dernière activité */}
+                {axe.last_accessed_at && (
+                  <div className="text-xs text-gray-500 text-center">
+                    Dernière activité: {new Date(axe.last_accessed_at).toLocaleDateString('fr-FR')}
+                  </div>
+                )}
+
+                {/* Bouton d'action */}
+                <div className="mt-4">
+                  <button className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold py-2 px-4 rounded-lg hover:from-purple-600 hover:to-pink-600 transition-colors">
+                    {axe.overall_progress === 100 ? 'Revoir' : 
+                     axe.overall_progress > 0 ? 'Continuer' : 'Commencer'}
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -336,8 +451,12 @@ export default function RenaissancePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-100 to-pink-100">
+    <ModernLayout
+      title="Renaissance 🦋"
+      description="C'est ici que débute ta renaissance qui débutera par la sélection des axes personnalisés. Ils transformeront tes croyances et tes pensées, 
+              tout en t'aidant à mieux gérer tes émotions."
+    >
       <RenaissanceWelcome stats={userStats} />
-    </div>
+    </ModernLayout>
   );
 }

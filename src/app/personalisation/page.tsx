@@ -73,7 +73,7 @@ interface PageContainerProps {
 
 const PageContainer: React.FC<PageContainerProps> = ({ children, title = "PERSONALISATION" }) => (
   <ModernLayout
-    title="Personnalisation"
+    title="Personnalisation 👤"
     className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50"
   >
     <div className="max-w-4xl mx-auto px-4 py-8">

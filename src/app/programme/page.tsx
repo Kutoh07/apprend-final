@@ -9,6 +9,7 @@ import { programmeSupabaseService } from '../../lib/programmeSupabaseService';
 import { ModuleService } from '../../lib/moduleService'; // 🔥 NOUVEAU : Import du ModuleService
 import { ProgrammeData, SubPart } from '../../lib/types/programme';
 import { supabase } from '../../lib/supabase';
+import { ModernLayout } from '@/components/layout/ModernLayout';
 
 interface PageState {
   programmeData: ProgrammeData | null;
@@ -300,8 +301,12 @@ export default function ProgrammePage() {
   const motivation = getMotivationalMessage();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-100 to-purple-100 p-4">
-      <div className="max-w-6xl mx-auto">
+    <ModernLayout
+      title="Programme 💼"
+      description="C'est le moment d'intégrer ton parcours d'excellence mentale afin de l'enraciner"
+    >
+      <div className="bg-gradient-to-br from-pink-100 to-purple-100 min-h-screen p-4">
+        <div className="max-w-6xl mx-auto">
         
         {/* Indicateur de statut Supabase avec recalcul 
         <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
@@ -333,7 +338,7 @@ export default function ProgrammePage() {
         {/* Rest of the component remains the same... */}
         {/* Header principal */}
         <div className="bg-white rounded-3xl shadow-xl p-8 mb-8">
-          {/* Navigation améliorée en haut */}
+          {/* Navigation améliorée en haut 
           <div className="bg-white rounded-2xl shadow-lg p-4 mb-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -367,7 +372,7 @@ export default function ProgrammePage() {
               C'est le moment d'intégrer ton parcours d'excellence mentale afin de l'enraciner
             </p>
           </div>
-          
+
           {/* Barre de progression globale avec animation */}
           <div className="relative mb-6">
             <div className="bg-gray-200 rounded-full h-8 overflow-hidden shadow-inner">
@@ -609,7 +614,8 @@ export default function ProgrammePage() {
             </div>
           </div>
         )}*/}
+        </div>
       </div>
-    </div>
+    </ModernLayout>
   );
 }

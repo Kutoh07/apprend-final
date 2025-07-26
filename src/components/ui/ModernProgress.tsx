@@ -193,7 +193,7 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
             {centerContent || (
               <div className="text-center">
                 {showPercentage && (
-                  <span className="text-2xl font-bold text-gray-900">
+                  <span className="text-sm font-bold text-gray-900">
                     {Math.round(displayValue)}%
                   </span>
                 )}

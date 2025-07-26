@@ -269,6 +269,11 @@ body {
   }
 }
 
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
 .animate-float {
   animation: float 6s ease-in-out infinite;
 }
@@ -279,6 +284,10 @@ body {
 
 .animate-slide-in-top {
   animation: slideInFromTop 0.6s ease-out;
+}
+
+.animate-shimmer {
+  animation: shimmer 2s ease-in-out infinite;
 }
 
 /* ========== RESPONSIVE BREAKPOINTS ========== */
@@ -321,4 +330,71 @@ body {
     color: black !important;
     background: white !important;
   }
+}
+
+/* ========== STYLES POUR AMÉLIORER LA VISIBILITÉ ========== */
+/* Classes pour texte sur fond sombre/violet */
+.text-on-dark {
+  @apply text-white drop-shadow-sm;
+}
+
+.text-on-violet {
+  @apply text-white drop-shadow-sm;
+}
+
+.text-contrast-high {
+  @apply text-white font-medium drop-shadow-sm;
+}
+
+/* Arrière-plans semi-transparents pour améliorer la lisibilité */
+.bg-readable-dark {
+  @apply bg-black/20 backdrop-blur-sm;
+}
+
+.bg-readable-light {
+  @apply bg-white/90 backdrop-blur-sm;
+}
+
+/* Cards avec fond violet - texte lisible */
+.card-on-violet {
+  @apply bg-white/95 backdrop-blur-sm shadow-lg border-0;
+}
+
+.card-on-violet .card-text {
+  @apply text-gray-900 font-medium;
+}
+
+.card-on-violet .card-title {
+  @apply text-gray-900 font-bold;
+}
+
+/* Amélioration du contraste pour les sections violettes */
+.violet-section {
+  position: relative;
+}
+
+.violet-section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%);
+  pointer-events: none;
+}
+
+.violet-section .text-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* Amélioration spécifique pour les stats cards */
+.stats-card-dark {
+  @apply bg-gradient-to-br from-white/95 to-white/90 backdrop-blur-sm shadow-xl border border-white/20;
+}
+
+.stats-card-dark .stats-value {
+  @apply text-gray-900 font-bold drop-shadow-sm;
+}
+
+.stats-card-dark .stats-label {
+  @apply text-gray-700 font-medium;
 }

@@ -6,7 +6,7 @@ import React, { forwardRef } from 'react';
 import { LucideIcon } from 'lucide-react';
 
 export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
-  variant?: 'default' | 'gradient' | 'glass' | 'elevated' | 'bordered' | 'flat';
+  variant?: 'default' | 'gradient' | 'glass' | 'elevated' | 'bordered' | 'flat' | 'readable';
   padding?: 'none' | 'sm' | 'md' | 'lg' | 'xl';
   hover?: boolean;
   interactive?: boolean;
@@ -20,10 +20,12 @@ export interface CardHeaderProps extends React.HTMLAttributes<HTMLDivElement> {
   icon?: LucideIcon;
   iconColor?: string;
   action?: React.ReactNode;
+  darkText?: boolean;
 }
 
 export interface CardContentProps extends React.HTMLAttributes<HTMLDivElement> {
   spacing?: 'none' | 'sm' | 'md' | 'lg';
+  darkText?: boolean;
 }
 
 export interface CardFooterProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -36,7 +38,8 @@ const CardVariants = {
   glass: 'glass-effect shadow-medium',
   elevated: 'bg-white shadow-large border-0',
   bordered: 'bg-white border-2 border-gray-200 shadow-none',
-  flat: 'bg-gray-50 border-0 shadow-none'
+  flat: 'bg-gray-50 border-0 shadow-none',
+  readable: 'bg-white/95 backdrop-blur-sm shadow-xl border border-white/20'
 };
 
 const CardPadding = {
@@ -90,16 +93,20 @@ export const ModernCard = forwardRef<HTMLDivElement, CardProps>(
 ModernCard.displayName = 'ModernCard';
 
 export const CardHeader = forwardRef<HTMLDivElement, CardHeaderProps>(
-  ({
+  ({ 
     children,
     title,
     subtitle,
     icon: Icon,
     iconColor = 'text-primary-500',
     action,
+    darkText = false,
     className = '',
     ...props
   }, ref) => {
+    const textColor = darkText ? 'text-white' : 'text-gray-900';
+    const subtitleColor = darkText ? 'text-gray-200' : 'text-gray-600';
+    
     return (
       <div
         ref={ref}
@@ -114,12 +121,12 @@ export const CardHeader = forwardRef<HTMLDivElement, CardHeaderProps>(
           )}
           <div className="flex-1 min-w-0">
             {title && (
-              <h3 className="text-lg font-semibold text-gray-900 mb-1 truncate">
+              <h3 className={`text-lg font-semibold ${textColor} mb-1 truncate drop-shadow-sm`}>
                 {title}
               </h3>
             )}
             {subtitle && (
-              <p className="text-sm text-gray-600 mb-2">
+              <p className={`text-sm ${subtitleColor} mb-2 drop-shadow-sm`}>
                 {subtitle}
               </p>
             )}
@@ -134,23 +141,23 @@ export const CardHeader = forwardRef<HTMLDivElement, CardHeaderProps>(
       </div>
     );
   }
-);
-
-CardHeader.displayName = 'CardHeader';
+);CardHeader.displayName = 'CardHeader';
 
 export const CardContent = forwardRef<HTMLDivElement, CardContentProps>(
   ({
     children,
     spacing = 'md',
+    darkText = false,
     className = '',
     ...props
   }, ref) => {
     const spacingClasses = ContentSpacing[spacing];
+    const textClasses = darkText ? 'text-white [&_h1]:text-white [&_h2]:text-white [&_h3]:text-white [&_h4]:text-white [&_p]:text-white [&_span]:text-white' : '';
     
     return (
       <div
         ref={ref}
-        className={`${spacingClasses} ${className}`}
+        className={`${spacingClasses} ${textClasses} ${className}`}
         {...props}
       >
         {children}
@@ -200,6 +207,7 @@ interface StatsCardProps extends Omit<CardProps, 'children'> {
   };
   icon?: LucideIcon;
   trend?: 'up' | 'down' | 'neutral';
+  onDark?: boolean;
 }
 
 export const StatsCard = forwardRef<HTMLDivElement, StatsCardProps>(
@@ -209,6 +217,7 @@ export const StatsCard = forwardRef<HTMLDivElement, StatsCardProps>(
     change,
     icon: Icon,
     trend = 'neutral',
+    onDark = false,
     ...props
   }, ref) => {
     const trendColors = {
@@ -217,12 +226,16 @@ export const StatsCard = forwardRef<HTMLDivElement, StatsCardProps>(
       neutral: 'text-gray-600 bg-gray-50'
     };
 
+    const cardVariant = onDark ? 'readable' : 'elevated';
+    const titleColor = onDark ? 'text-gray-700' : 'text-gray-600';
+    const valueColor = onDark ? 'text-gray-900' : 'text-gray-900';
+
     return (
-      <ModernCard ref={ref} variant="elevated" hover {...props}>
+      <ModernCard ref={ref} variant={cardVariant} hover {...props}>
         <div className="flex items-center justify-between">
           <div className="flex-1">
-            <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
-            <p className="text-2xl font-bold text-gray-900 mb-2">{value}</p>
+            <p className={`text-sm font-medium ${titleColor} mb-1 drop-shadow-sm`}>{title}</p>
+            <p className={`text-2xl font-bold ${valueColor} mb-2 drop-shadow-sm`}>{value}</p>
             {change && (
               <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${trendColors[trend]}`}>
                 <span className="mr-1">
@@ -233,7 +246,7 @@ export const StatsCard = forwardRef<HTMLDivElement, StatsCardProps>(
             )}
           </div>
           {Icon && (
-            <div className="p-3 bg-primary-100 text-primary-600 rounded-xl">
+            <div className="p-3 bg-primary-100 text-primary-600 rounded-xl shadow-sm">
               <Icon className="w-6 h-6" />
             </div>
           )}
