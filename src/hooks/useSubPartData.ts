@@ -298,10 +298,10 @@ export function useSubPartData(subPartId: number) {
         await reloadData();
         
         const duration = performance.now() - startTime;
-        
-        setUI(prev => ({ 
-          ...prev, 
-          success: `✅ Sauvegarde en ${Math.round(duration)}ms ! Progressions recalculées.`
+
+        setUI(prev => ({
+          ...prev,
+          success: `✅ Progression sauvegardée`
         }));
         
         setTimeout(() => setUI(prev => ({ ...prev, success: null })), 2000);
