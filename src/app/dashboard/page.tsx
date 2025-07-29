@@ -75,8 +75,27 @@ const skillsConfig: Omit<Skill, 'value'>[] = [
 const defaultSkillValues = { confiance: 85, discipline: 70, action: 95 };
 
 // Fonctions utilitaires
-const calculateAverageProgress = (programmeData: ProgrammeData | null, skills: Skill[]): number => {
-  return programmeData?.overallProgress || Math.round(skills.reduce((acc, skill) => acc + skill.value, 0) / skills.length);
+const calculateAverageProgress = (programmeData: ProgrammeData | null, renaissanceStats?: RenaissanceStats): number => {
+  // Progression Personnalisation (toujours 100% car c'est déjà fait)
+  const personnalisationProgress = 100;
+  
+  // Progression Programme (depuis les données Supabase)
+  const programmeProgress = programmeData?.overallProgress || 0;
+  
+  // Progression Renaissance (depuis les stats Renaissance)
+  const renaissanceProgress = renaissanceStats?.totalProgress || 0;
+  
+  // Moyenne des trois étapes
+  const globalProgress = Math.round((personnalisationProgress + programmeProgress + renaissanceProgress) / 3);
+  
+  console.log('📊 Calcul progression globale:', {
+    personnalisation: personnalisationProgress,
+    programme: programmeProgress,
+    renaissance: renaissanceProgress,
+    moyenne: globalProgress
+  });
+  
+  return globalProgress;
 };
 
 const createSkills = (userProgress?: UserProgress): Skill[] => {
@@ -334,7 +353,7 @@ export default function DashboardPage() {
   }, [router]);
 
   const skills = user ? createSkills(user.progress) : createSkills();
-  const averageProgress = calculateAverageProgress(programmeData, skills);
+  const averageProgress = calculateAverageProgress(programmeData, renaissanceStats);
   const journeyStages = createJourneyStages(programmeData, renaissanceStats);
   const motivationalMessage = getMotivationalMessage(user?.progress.level || 0, averageProgress);
 

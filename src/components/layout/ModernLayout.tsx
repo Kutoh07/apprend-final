@@ -53,8 +53,7 @@ const navigationItems: NavigationItem[] = [
     name: 'Renaissance',
     href: '/renaissance',
     icon: Star,
-    description: 'Transformation profonde',
-    badge: 'Nouveau'
+    description: 'Transformation profonde'
   },
   {
     name: 'Évolution',
