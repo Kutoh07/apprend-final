@@ -3,6 +3,7 @@
 import { supabase } from './supabase';
 import { ProgrammeData, SubPart, SUBPARTS_CONFIG, SubPartField } from './types/programme';
 import { ModuleService } from './moduleService';
+import { EvolutionUpdateService } from './services/evolutionUpdateService';
 
 // 🔥 NOUVEAU : Types pour l'optimisation
 interface OptimizedProgrammeData {
@@ -169,6 +170,15 @@ export class ProgrammeSupabaseService {
       // 🔥 Invalidation de cache et recalcul optimisé
       this.invalidateCache(userId);
       await ModuleService.recalculateAllModulesProgress(userId);
+
+      // 🎯 NOUVEAU : Mise à jour des statistiques d'évolution
+      try {
+        const wordCount = value.trim().split(/\s+/).length;
+        await EvolutionUpdateService.onProgrammeEntryCreated(userId, subPartId, value, wordCount);
+      } catch (evolutionError) {
+        console.warn('⚠️ Erreur mise à jour statistiques évolution:', evolutionError);
+        // Ne pas faire échouer l'ajout pour une erreur de stats
+      }
 
       const endTime = performance.now();
       console.log(`✅ Entrée ajoutée en ${Math.round(endTime - startTime)}ms`);

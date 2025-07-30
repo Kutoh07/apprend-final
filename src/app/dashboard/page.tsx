@@ -36,48 +36,55 @@ interface User {
   progress: UserProgress;
 }
 
-interface Skill {
-  name: string;
-  value: number;
-  color: string;
-  description: string;
-  icon: string;
-}
-
 interface ProgressMessage {
   title: string;
   message: string;
   color: string;
 }
 
-// Configuration des compétences
-const skillsConfig: Omit<Skill, 'value'>[] = [
-  { 
-    name: "CONFIANCE", 
-    color: "bg-gradient-to-r from-yellow-400 to-orange-500",
-    description: "Croire en ses capacités",
-    icon: "💪"
-  },
-  { 
-    name: "DISCIPLINE", 
-    color: "bg-gradient-to-r from-red-400 to-pink-500",
-    description: "Constance dans l'action",
-    icon: "🎯"
-  },
-  { 
-    name: "ACTION", 
-    color: "bg-gradient-to-r from-purple-400 to-indigo-500",
-    description: "Passage à l'acte",
-    icon: "🚀"
-  }
-];
-
 const defaultSkillValues = { confiance: 85, discipline: 70, action: 95 };
 
+// Fonction pour calculer la progression de personnalisation
+const calculatePersonnalisationProgress = async (): Promise<number> => {
+  try {
+    const { data: userProfile, error } = await UserProfileService.getUserProfile();
+    
+    if (error || !userProfile) {
+      console.log('📊 Aucun profil trouvé, progression personnalisation: 0%');
+      return 0;
+    }
+    
+    // Vérifier les champs obligatoires: name, birthYear, profession
+    const requiredFields = [
+      userProfile.name,
+      userProfile.birthYear,
+      userProfile.profession
+    ];
+    
+    const completedFields = requiredFields.filter(field => 
+      field !== null && field !== undefined && field !== ''
+    ).length;
+    
+    const progress = Math.round((completedFields / requiredFields.length) * 100);
+    
+    console.log('📊 Progression personnalisation:', {
+      name: userProfile.name ? '✅' : '❌',
+      birthYear: userProfile.birthYear ? '✅' : '❌',
+      profession: userProfile.profession ? '✅' : '❌',
+      progression: `${progress}%`
+    });
+    
+    return progress;
+  } catch (error) {
+    console.error('❌ Erreur calcul progression personnalisation:', error);
+    return 0;
+  }
+};
+
 // Fonctions utilitaires
-const calculateAverageProgress = (programmeData: ProgrammeData | null, renaissanceStats?: RenaissanceStats): number => {
-  // Progression Personnalisation (toujours 100% car c'est déjà fait)
-  const personnalisationProgress = 100;
+const calculateAverageProgress = async (programmeData: ProgrammeData | null, renaissanceStats?: RenaissanceStats): Promise<number> => {
+  // Progression Personnalisation (calculée dynamiquement)
+  const personnalisationProgress = await calculatePersonnalisationProgress();
   
   // Progression Programme (depuis les données Supabase)
   const programmeProgress = programmeData?.overallProgress || 0;
@@ -96,14 +103,6 @@ const calculateAverageProgress = (programmeData: ProgrammeData | null, renaissan
   });
   
   return globalProgress;
-};
-
-const createSkills = (userProgress?: UserProgress): Skill[] => {
-  return skillsConfig.map(config => ({
-    ...config,
-    value: userProgress?.skills?.[config.name.toLowerCase() as keyof typeof userProgress.skills] || 
-           defaultSkillValues[config.name.toLowerCase() as keyof typeof defaultSkillValues] || 0
-  }));
 };
 
 const createJourneyStages = (programmeData: ProgrammeData | null, renaissanceStats?: RenaissanceStats): any[] => {
@@ -217,11 +216,26 @@ export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [programmeData, setProgrammeData] = useState<ProgrammeData | null>(null);
   const [renaissanceStats, setRenaissanceStats] = useState<RenaissanceStats>();
+  const [averageProgress, setAverageProgress] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
   const loadRenaissanceStats = async (userId: string) => {
     try {
       console.log('🔄 Chargement des stats Renaissance pour userId:', userId);
+      
+      // Vérifier d'abord si le service Renaissance est disponible
+      if (!renaissanceService || typeof renaissanceService.getUserStats !== 'function') {
+        console.warn('⚠️ Service Renaissance non disponible, utilisation de données par défaut');
+        setRenaissanceStats({
+          totalAxesSelected: 0,
+          axesCompleted: 0,
+          totalProgress: 0,
+          averageAccuracy: 0,
+          totalTimeSpent: 0,
+          totalAttempts: 0
+        });
+        return;
+      }
       
       // Utiliser le service Renaissance pour cohérence avec la page Renaissance
       const stats = await renaissanceService.getUserStats(userId);
@@ -352,8 +366,18 @@ export default function DashboardPage() {
     checkAuthAndLoadData();
   }, [router]);
 
-  const skills = user ? createSkills(user.progress) : createSkills();
-  const averageProgress = calculateAverageProgress(programmeData, renaissanceStats);
+  // Calculer la progression moyenne quand les données sont chargées
+  useEffect(() => {
+    const calculateProgression = async () => {
+      if (programmeData || renaissanceStats) {
+        const progress = await calculateAverageProgress(programmeData, renaissanceStats);
+        setAverageProgress(progress);
+      }
+    };
+
+    calculateProgression();
+  }, [programmeData, renaissanceStats]);
+
   const journeyStages = createJourneyStages(programmeData, renaissanceStats);
   const motivationalMessage = getMotivationalMessage(user?.progress.level || 0, averageProgress);
 
@@ -373,7 +397,7 @@ export default function DashboardPage() {
       {/* Container principal avec largeur maximale et centrage */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="space-y-6 sm:space-y-8 py-6 sm:py-8">
-          {/* Section des statistiques */}
+          {/* Section des statistiques 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             <StatsCard
               title="Progression globale"
@@ -397,7 +421,7 @@ export default function DashboardPage() {
             change={{ value: journeyStages.reduce((total, stage) => total + (stage.modules?.length || 0), 0), label: "modules total" }}
             variant="glass"
           />
-        </div>
+        </div>*/}
 
         {/* Message motivationnel avec jauges améliorées */}
         <ModernCard variant="gradient">
@@ -456,93 +480,6 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </div>
-            </div>
-          </CardContent>
-        </ModernCard>
-
-        {/* Section des compétences avec jauges visuelles */}
-        <ModernCard variant="glass">
-          <CardHeader>
-            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-white" />
-              </div>
-              Tes Compétences Développées
-            </h2>
-            <p className="text-gray-600">Progression dans les domaines clés de ton développement</p>
-          </CardHeader>
-          <CardContent spacing="lg">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {skills.map((skill, index) => (
-                <div key={skill.name} className="relative group">
-                  {/* Carte de compétence avec effet hover */}
-                  <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-                    {/* Header de la compétence */}
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="text-2xl">{skill.icon}</div>
-                        <div>
-                          <h3 className="font-bold text-gray-800 text-sm">{skill.name}</h3>
-                          <p className="text-xs text-gray-500">{skill.description}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-2xl font-bold text-gray-800">{skill.value}%</div>
-                      </div>
-                    </div>
-                    
-                    {/* Barre de progression élégante */}
-                    <div className="relative">
-                      <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full ${skill.color} transition-all duration-1000 ease-out relative rounded-full`}
-                          style={{ width: `${skill.value}%` }}
-                        >
-                          {/* Effet de brillance */}
-                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"></div>
-                        </div>
-                      </div>
-                      
-                      {/* Points de palier */}
-                      <div className="absolute top-0 left-0 right-0 flex justify-between items-center h-3">
-                        {[25, 50, 75].map((threshold) => (
-                          <div 
-                            key={threshold}
-                            className={`w-1 h-3 rounded-full ${
-                              skill.value >= threshold ? 'bg-white shadow-sm' : 'bg-gray-300'
-                            }`}
-                            style={{ marginLeft: `${threshold}%` }}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                    
-                    {/* Badge de niveau */}
-                    <div className="mt-3 flex justify-between items-center">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        skill.value >= 80 ? 'bg-green-100 text-green-800' :
-                        skill.value >= 60 ? 'bg-blue-100 text-blue-800' :
-                        skill.value >= 40 ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {skill.value >= 80 ? 'Expert' :
-                         skill.value >= 60 ? 'Avancé' :
-                         skill.value >= 40 ? 'Intermédiaire' :
-                         'Débutant'}
-                      </span>
-                      
-                      {/* Flèche de tendance */}
-                      <div className="flex items-center gap-1 text-green-600">
-                        <TrendingUp className="w-3 h-3" />
-                        <span className="text-xs font-medium">+{Math.floor(Math.random() * 10 + 5)}%</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Effet de particules au hover */}
-                  <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl blur opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
-                </div>
-              ))}
             </div>
           </CardContent>
         </ModernCard>

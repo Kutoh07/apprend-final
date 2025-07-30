@@ -33,12 +33,13 @@ const SubPartEncouragement: React.FC<SubPartEncouragementProps> = ({
           Ajoutez au moins <strong>{(subPart.minFields || 1) - subPart.fields.length}</strong> entrée(s) 
           supplémentaire(s) pour débloquer le module suivant
         </p>
+        {/* Informations sur la correction appliquée 
         <div className="bg-yellow-100 rounded-lg p-3 mb-4">
           <p className="text-yellow-700 text-sm">
             🔥 <strong>CORRECTION APPLIQUÉE:</strong> Une fois ce module validé, 
             <strong> TOUS les modules suivants</strong> seront automatiquement débloqués avec leur vraie progression !
           </p>
-        </div>
+        </div>*/}
         <div className="text-xs text-yellow-600">
           Plus que {(subPart.minFields || 1) - subPart.fields.length} entrée(s) 
           pour passer de {subPart.progress}% à 100%

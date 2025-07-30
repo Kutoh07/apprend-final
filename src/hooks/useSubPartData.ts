@@ -215,7 +215,7 @@ export function useSubPartData(subPartId: number) {
           setUI(prev => ({ 
             ...prev, 
             newValue: '',
-            success: `✅ Entrée ajoutée en ${Math.round(duration)}ms ! Progressions recalculées.`
+            success: `✅ Nouvelle entrée sauvegardée avec succès'`
           }));
           
           setTimeout(() => setUI(prev => ({ ...prev, success: null })), 3000);
@@ -245,7 +245,7 @@ export function useSubPartData(subPartId: number) {
           
           setUI(prev => ({ 
             ...prev, 
-            success: `✅ Mise à jour en ${Math.round(duration)}ms ! Progressions recalculées.`
+            success: `✅ Mise à jour effectuées avec succès.`
           }));
           
           setTimeout(() => setUI(prev => ({ ...prev, success: null })), 2000);
@@ -273,8 +273,8 @@ export function useSubPartData(subPartId: number) {
         
         setUI(prev => ({ 
           ...prev, 
-          success: `✅ Suppression en ${Math.round(duration)}ms ! Progressions recalculées.`
-        }));
+              success: `✅ Suppression effectuée avec succès.`
+            }));
         
         setTimeout(() => setUI(prev => ({ ...prev, success: null })), 2000);
       } catch (err: any) {

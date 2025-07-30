@@ -110,7 +110,7 @@ Ce système implémente un **stepper de validation progressif** sophistiqué pou
 
 ### Installation de la table Supabase
 ```sql
--- Exécuter le fichier retention_validation_schema.sql
+-- Commandes de création de la table rajoutées au fichier supabase\schema.sql
 ```
 
 ### Intégration dans une page

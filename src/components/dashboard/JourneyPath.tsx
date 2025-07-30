@@ -3,7 +3,7 @@
 'use client';
 
 import React from 'react';
-import { CheckCircle, Circle, Lock, ArrowRight, User, BookOpen, Sparkles } from 'lucide-react';
+import { CheckCircle, Circle, Lock, User, BookOpen, Sparkles } from 'lucide-react';
 import { ModernCard, CardContent } from '../ui/ModernCard';
 import { CircularProgress } from '../ui/ModernProgress';
 
@@ -65,7 +65,7 @@ export default function JourneyPath({ stages, currentStage }: JourneyPathProps) 
       <CardContent spacing="lg">
         <div className="text-center mb-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Ton Parcours de Transformation</h2>
-          <p className="text-gray-600">Personalisation ➡️ Programme ➡️ Renaissance</p>
+          <p className="text-gray-600">Personalisation • Programme • Renaissance</p>
         </div>
 
         <div className="relative">
@@ -82,13 +82,6 @@ export default function JourneyPath({ stages, currentStage }: JourneyPathProps) 
           <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8">
             {stages.map((stage, index) => (
               <div key={stage.id} className="relative">
-                {/* Connecteur vers l'étape suivante */}
-                {index < stages.length - 1 && (
-                  <div className="hidden md:block absolute top-10 -right-4 z-20">
-                    <ArrowRight className="w-6 h-6 text-gray-400" />
-                  </div>
-                )}
-
                 {/* Carte de l'étape avec effets visuels améliorés */}
                 <div className="relative group">
                   {/* Effet de halo au hover */}
@@ -314,7 +307,7 @@ export default function JourneyPath({ stages, currentStage }: JourneyPathProps) 
                   return total + (stage.modules?.filter(m => m.completed).length || 0);
                 }, 0)}
               </div>
-              <div className="text-xs md:text-sm text-blue-700 font-medium">Modules terminés</div>
+              <div className="text-xs md:text-sm text-blue-700 font-medium">Parties terminées</div>
               <div className="mt-1 text-blue-500">
                 <div className="w-2 h-2 bg-blue-500 rounded-full mx-auto"></div>
               </div>
